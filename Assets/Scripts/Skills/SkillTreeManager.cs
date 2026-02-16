@@ -33,6 +33,7 @@ public class SkillTreeManager : MonoBehaviour
 
     //jeweler — kuyumcu sistemi
     private bool jewelerUnlocked = false;
+    private List<JewelerProduct> availableJewelers = new List<JewelerProduct>(); //satın alınabilir kuyumcular
     private List<OwnedJeweler> ownedJewelers = new List<OwnedJeweler>();
 
     //training — bilim adamı eğitim sistemi
@@ -59,6 +60,7 @@ public class SkillTreeManager : MonoBehaviour
     //events — jeweler
     public static event Action OnJewelerUnlocked; //kuyumcu satın alınabilir
     public static event Action<OwnedJeweler> OnJewelerBought; //kuyumcu satın alındı
+    public static event Action<float, float, float> OnJewelerTick; //gelir, şüphe, itibar (tick başına toplam)
 
     //events — training
     public static event Action OnTrainingUnlocked; //eğitim sistemi açıldı
@@ -106,6 +108,43 @@ public class SkillTreeManager : MonoBehaviour
 
                 GameStatManager.Instance.AddWealth(totalIncome);
                 OnPassiveIncomeTick?.Invoke(totalIncome);
+            }
+
+            //kuyumcu tick'i — gelir, şüphe, itibar
+            if (ownedJewelers.Count > 0 && GameStatManager.Instance != null)
+            {
+                float totalJewelerIncome = 0f;
+                float totalSuspicion = 0f;
+                float totalReputation = 0f;
+
+                //eğitim çarpanı: 0=0x, 50=1x, 75=2.25x, 100=4x şüphe
+                float educationMultiplier = 1f;
+                if (CountryData.Instance != null)
+                {
+                    float t = CountryData.Instance.EducationIndex / 50f;
+                    educationMultiplier = t * t;
+                }
+
+                for (int i = 0; i < ownedJewelers.Count; i++)
+                {
+                    JewelerProduct product = ownedJewelers[i].product;
+                    totalJewelerIncome += product.incomePer10Seconds;
+
+                    if (product.jewelerType == JewelerType.Illegal)
+                        totalSuspicion += product.suspicionPerMinute / 6f * educationMultiplier;
+
+                    if (product.jewelerType == JewelerType.Legal)
+                        totalReputation += product.reputationPerMinute / 6f;
+                }
+
+                if (totalJewelerIncome != 0f)
+                    GameStatManager.Instance.AddWealth(totalJewelerIncome);
+                if (totalSuspicion != 0f)
+                    GameStatManager.Instance.AddSuspicion(totalSuspicion);
+                if (totalReputation != 0f)
+                    GameStatManager.Instance.AddReputation(totalReputation);
+
+                OnJewelerTick?.Invoke(totalJewelerIncome, totalSuspicion, totalReputation);
             }
 
         }
@@ -683,8 +722,17 @@ public class SkillTreeManager : MonoBehaviour
     /// <summary>
     /// UnlockTrainingEffect tarafından çağrılır. Bilim adamı eğitim sistemini açar.
     /// </summary>
-    public void UnlockJeweler()
+    public void UnlockJeweler(List<JewelerProduct> jewelers)
     {
+        if (jewelers != null)
+        {
+            for (int i = 0; i < jewelers.Count; i++)
+            {
+                if (!availableJewelers.Contains(jewelers[i]))
+                    availableJewelers.Add(jewelers[i]);
+            }
+        }
+
         if (jewelerUnlocked) return;
         jewelerUnlocked = true;
         OnJewelerUnlocked?.Invoke();
@@ -697,6 +745,7 @@ public class SkillTreeManager : MonoBehaviour
     public bool BuyJeweler(JewelerProduct product)
     {
         if (!jewelerUnlocked) return false;
+        if (!availableJewelers.Contains(product)) return false;
         if (GameStatManager.Instance == null) return false;
         if (!GameStatManager.Instance.HasEnoughWealth(product.cost)) return false;
 
@@ -715,6 +764,11 @@ public class SkillTreeManager : MonoBehaviour
     public int GetJewelerCount()
     {
         return ownedJewelers.Count;
+    }
+
+    public List<JewelerProduct> GetAvailableJewelers()
+    {
+        return availableJewelers;
     }
 
     public List<OwnedJeweler> GetOwnedJewelers()
@@ -964,13 +1018,6 @@ public class OwnedInvestment
         else
             targetPercent = -UnityEngine.Random.Range(0f, product.maxLossPercent);
     }
-}
-
-public enum JewelerLocationType
-{
-    Normal,
-    Unsafe,
-    Elite
 }
 
 [System.Serializable]

@@ -12,19 +12,26 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4247ce893ce17f249aa1bc6c230bf7d8, type: 3}
   m_Name: Painite
   m_EditorClassIdentifier: Assembly-CSharp::InvestmentProduct
-  id: 
-  displayName: 
+  id: investmentproduct08
+  displayName: Painite
+  productType: 1
   icon: {fileID: 0}
   cost: 0
-  profitChance: 0.8
-  maxProfitPercent: 40
-  maxLossPercent: 25
-  volatility: 3
-  postPotentialDrift: -5
-  postPotentialTimeout: 60
-  idleOscillationMin: -5
-  idleOscillationMax: 5
-  hasLimitedAvailability: 0
-  availabilityChance: 0.3
+  profitChance: 0.956
+  isStreakBreakerActive: 0
+  streakBreakerType: 0
+  streakBreakerMin: 4
+  streakBreakerMax: 6
+  maxProfitPercent: 450
+  maxLossPercent: 5
+  minReachTime: 120
+  maxReachTime: 210
+  volatility: 20
+  postPotentialDrift: 45
+  postPotentialTimeout: 100
+  idleOscillationMin: -3
+  idleOscillationMax: 10
+  hasLimitedAvailability: 1
+  availabilityChance: 0.01
   availabilityCycleDuration: 120
-  minAvailableDuration: 15
+  minAvailableDuration: 5

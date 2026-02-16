@@ -24,7 +24,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 768c13daaea0f0d4da14fbda34bb8f50, type: 2}
   effects:
   - rid: 2638472920323326022
-  - rid: 2638472920323326023
+  otherPrerequisites: 0
   blocksSkills: []
   references:
     version: 2
@@ -32,9 +32,4 @@ MonoBehaviour:
     - rid: 2638472920323326022
       type: {class: PassiveIncomeEffect, ns: , asm: Assembly-CSharp}
       data:
-        minIncomePerTick: 140
-        maxIncomePerTick: 170
-    - rid: 2638472920323326023
-      type: {class: UnlockMinigameEffect, ns: , asm: Assembly-CSharp}
-      data:
-        minigamesToBeUnlocked: []
+        products: []

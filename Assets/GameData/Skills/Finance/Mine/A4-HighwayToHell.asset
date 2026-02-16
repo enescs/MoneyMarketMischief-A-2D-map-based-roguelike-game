@@ -34,4 +34,4 @@ MonoBehaviour:
       type: {class: UnlockMinigameEffect, ns: , asm: Assembly-CSharp}
       data:
         minigamesToBeUnlocked:
-        - {fileID: 11400000, guid: 7927bdae41eeef14bb32842b707d5777, type: 2}
+        - {fileID: 11400000, guid: 803f4bb37f923564fba9cf0743029712, type: 2}

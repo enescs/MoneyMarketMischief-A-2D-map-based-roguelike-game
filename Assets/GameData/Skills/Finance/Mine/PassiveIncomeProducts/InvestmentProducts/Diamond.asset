@@ -12,19 +12,25 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4247ce893ce17f249aa1bc6c230bf7d8, type: 3}
   m_Name: Diamond
   m_EditorClassIdentifier: Assembly-CSharp::InvestmentProduct
-  id: 
-  displayName: 
-  productType: 0
+  id: investmentproduct09
+  displayName: Diamond
+  productType: 1
   icon: {fileID: 0}
   cost: 0
-  profitChance: 0.8
-  maxProfitPercent: 40
-  maxLossPercent: 25
+  profitChance: 0.1
+  isStreakBreakerActive: 1
+  streakBreakerType: 1
+  streakBreakerMin: 4
+  streakBreakerMax: 6
+  maxProfitPercent: 15
+  maxLossPercent: 50
+  minReachTime: 100
+  maxReachTime: 150
   volatility: 3
-  postPotentialDrift: -5
+  postPotentialDrift: 5
   postPotentialTimeout: 60
-  idleOscillationMin: -5
-  idleOscillationMax: 5
+  idleOscillationMin: -1
+  idleOscillationMax: 1
   hasLimitedAvailability: 0
   availabilityChance: 0.3
   availabilityCycleDuration: 120
