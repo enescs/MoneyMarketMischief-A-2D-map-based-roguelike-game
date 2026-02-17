@@ -172,6 +172,9 @@ public class WarForOilManager : MonoBehaviour
 
         WarForOilEventChoice choice = currentEvent.choices[choiceIndex];
 
+        //ön koşulları sağlanmayan seçenek seçilemez
+        if (!choice.IsAvailable()) return;
+
         //modifier'ları biriktir
         accumulatedSuspicionModifier += choice.suspicionModifier;
         accumulatedCostModifier += choice.costModifier;
@@ -424,13 +427,42 @@ public class WarForOilManager : MonoBehaviour
         eventDecisionTimer -= Time.unscaledDeltaTime;
         OnEventDecisionTimerUpdate?.Invoke(eventDecisionTimer);
 
-        //süre doldu — default seçeneği otomatik seç
+        //süre doldu — default seçeneği otomatik seç (available olmalı)
         if (eventDecisionTimer <= 0f)
         {
-            int defaultIdx = (currentEvent.defaultChoiceIndex >= 0 &&
-                              currentEvent.defaultChoiceIndex < currentEvent.choices.Count)
-                ? currentEvent.defaultChoiceIndex
-                : 0;
+            int defaultIdx = -1;
+
+            //önce belirlenmiş default'u dene
+            if (currentEvent.defaultChoiceIndex >= 0 &&
+                currentEvent.defaultChoiceIndex < currentEvent.choices.Count &&
+                currentEvent.choices[currentEvent.defaultChoiceIndex].IsAvailable())
+            {
+                defaultIdx = currentEvent.defaultChoiceIndex;
+            }
+
+            //default available değilse, available olan ilk choice'u bul
+            if (defaultIdx < 0)
+            {
+                for (int i = 0; i < currentEvent.choices.Count; i++)
+                {
+                    if (currentEvent.choices[i].IsAvailable())
+                    {
+                        defaultIdx = i;
+                        break;
+                    }
+                }
+            }
+
+            //hiç available choice yoksa event'i etkisiz kapat
+            if (defaultIdx < 0)
+            {
+                currentEvent = null;
+                if (GameManager.Instance != null)
+                    GameManager.Instance.ResumeGame();
+                currentState = WarForOilState.WarProcess;
+                return;
+            }
+
             ResolveEvent(defaultIdx);
         }
     }
@@ -462,12 +494,13 @@ public class WarForOilManager : MonoBehaviour
     {
         if (selectedCountry.events == null || selectedCountry.events.Count == 0) return;
 
-        //daha önce tetiklenmemiş eventleri filtrele
+        //daha önce tetiklenmemiş ve minimum süreyi geçmiş eventleri filtrele
         List<WarForOilEvent> available = new List<WarForOilEvent>();
         for (int i = 0; i < selectedCountry.events.Count; i++)
         {
-            if (!triggeredEvents.Contains(selectedCountry.events[i]))
-                available.Add(selectedCountry.events[i]);
+            WarForOilEvent evt = selectedCountry.events[i];
+            if (!triggeredEvents.Contains(evt) && warTimer >= evt.minWarTime)
+                available.Add(evt);
         }
 
         if (available.Count == 0) return;
