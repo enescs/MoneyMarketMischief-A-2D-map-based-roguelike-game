@@ -10,6 +10,9 @@ public class PipeHuntManager : MonoBehaviour
     public MiniGameData minigameData;
     public PipeHuntDatabase database;
 
+    [Header("Debug")]
+    [SerializeField] private bool bypassUnlockCheck = false;
+    
     //state
     private PipeHuntState currentState = PipeHuntState.Idle;
     private List<PipeInstance> pipes = new List<PipeInstance>();
@@ -107,22 +110,45 @@ public class PipeHuntManager : MonoBehaviour
     /// </summary>
     public void StartGame(HuntTool tool)
     {
-        if (currentState != PipeHuntState.Idle) return;
-        if (tool == null) return;
+        Debug.Log($"[PipeHunt] StartGame called with tool: {tool?.displayName ?? "NULL"}");
 
-        //minigame açık mı ve cooldown'da mı kontrol et
-        if (MinigameManager.Instance != null)
+        if (currentState != PipeHuntState.Idle)
         {
-            if (!MinigameManager.Instance.IsMinigameUnlocked(minigameData)) return;
-            if (MinigameManager.Instance.IsOnCooldown(minigameData)) return;
+            Debug.Log($"[PipeHunt] BLOCKED - State is {currentState}, not Idle");
+            return;
         }
 
-        //alet maliyetini öde
+        if (tool == null)
+        {
+            Debug.Log("[PipeHunt] BLOCKED - Tool is null");
+            return;
+        }
+
+        if (MinigameManager.Instance != null && !bypassUnlockCheck)
+        {
+            if (!MinigameManager.Instance.IsMinigameUnlocked(minigameData))
+            {
+                Debug.Log("[PipeHunt] BLOCKED - Minigame not unlocked");
+                return;
+            }
+            if (MinigameManager.Instance.IsOnCooldown(minigameData))
+            {
+                Debug.Log("[PipeHunt] BLOCKED - Minigame on cooldown");
+                return;
+            }
+        }
+
         if (GameStatManager.Instance != null)
         {
-            if (!GameStatManager.Instance.HasEnoughWealth(tool.cost)) return;
+            if (!GameStatManager.Instance.HasEnoughWealth(tool.cost))
+            {
+                Debug.Log($"[PipeHunt] BLOCKED - Not enough wealth for cost {tool.cost}");
+                return;
+            }
             GameStatManager.Instance.TrySpendWealth(tool.cost);
         }
+
+        Debug.Log("[PipeHunt] All checks passed, starting game...");
 
         //seçilen aleti kaydet
         currentTool = tool;

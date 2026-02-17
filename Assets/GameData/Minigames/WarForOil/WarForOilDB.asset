@@ -17,7 +17,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: defb5485257de0d48abcbe6c6286c2e1, type: 2}
   visibleCountryCount: 3
   rotationInterval: 90
-  pressureCooldown: 20
+  pressureCooldown: 1
   politicalInfluenceMultiplier: 0.01
   warDuration: 300
   eventInterval: 15
