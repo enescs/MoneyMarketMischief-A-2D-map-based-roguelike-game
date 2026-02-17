@@ -114,6 +114,12 @@ public class ScientistSmuggleUI : MonoBehaviour
         if (killedAcknowledgeButton != null)
             killedAcknowledgeButton.onClick.AddListener(OnKilledAcknowledgeClicked);
 
+        // DEBUG: Slider referanslarını kontrol et
+        Debug.Log($"[ScientistSmuggleUI] offerTimerSlider: {(offerTimerSlider != null ? "OK" : "NULL")}");
+        Debug.Log($"[ScientistSmuggleUI] eventTimerSlider: {(eventTimerSlider != null ? "OK" : "NULL")}");
+        Debug.Log($"[ScientistSmuggleUI] processProgressSlider: {(processProgressSlider != null ? "OK" : "NULL")}");
+        Debug.Log($"[ScientistSmuggleUI] riskMeterSlider: {(riskMeterSlider != null ? "OK" : "NULL")}");
+
         // Başlangıçta tüm panelleri gizle
         HideAllPanels();
     }
@@ -316,6 +322,23 @@ public class ScientistSmuggleUI : MonoBehaviour
 
         int scientistCount = SkillTreeManager.Instance.GetScientistCount();
 
+        if (scientistCount == 0)
+        {
+            // Bilim adamı yok - uyarı göster
+            GameObject infoObj = Instantiate(scientistButtonPrefab, scientistListContainer);
+            spawnedScientistButtons.Add(infoObj);
+
+            var button = infoObj.GetComponent<Button>();
+            if (button != null) button.interactable = false;
+
+            var allTexts = infoObj.GetComponentsInChildren<TextMeshProUGUI>();
+            if (allTexts.Length > 0) allTexts[0].text = "Eğitimli bilim adamı yok! Teklifi reddetmelisiniz.";
+            if (allTexts.Length > 1) allTexts[1].text = "";
+            if (allTexts.Length > 2) allTexts[2].text = "";
+            return;
+        }
+
+        // Bilim adamları var - listele
         for (int i = 0; i < scientistCount; i++)
         {
             ScientistTraining scientist = SkillTreeManager.Instance.GetScientist(i);
@@ -325,42 +348,30 @@ public class ScientistSmuggleUI : MonoBehaviour
             spawnedScientistButtons.Add(buttonObj);
 
             var button = buttonObj.GetComponent<Button>();
-            var texts = buttonObj.GetComponentsInChildren<TextMeshProUGUI>();
-
-            // Ana text'i bul ve doldur
-            if (texts.Length > 0)
+            
+            var scientistButton = buttonObj.GetComponent<ScientistSmuggleScientistButton>();
+            if (scientistButton != null)
             {
+                scientistButton.SetupScientist(scientist);
+            }
+            else
+            {
+                var allTexts = buttonObj.GetComponentsInChildren<TextMeshProUGUI>();
                 string status = scientist.isCompleted ? "Hazır" : "Eğitimde";
-                texts[0].text = $"{scientist.data.displayName}\n" +
-                                $"Gizlilik: {scientist.data.stealthLevel * 100:F0}%\n" +
-                                $"{status}";
+                
+                if (allTexts.Length > 0) allTexts[0].text = scientist.data.displayName;
+                if (allTexts.Length > 1) allTexts[1].text = $"Gizlilik: {scientist.data.stealthLevel * 100:F0}%";
+                if (allTexts.Length > 2) allTexts[2].text = status;
             }
 
-            // Eğitimi tamamlanmamışsa butonu devre dışı bırak
             if (!scientist.isCompleted)
             {
                 button.interactable = false;
             }
             else
             {
-                int capturedIndex = i; // Closure için
+                int capturedIndex = i;
                 button.onClick.AddListener(() => OnScientistSelected(capturedIndex));
-            }
-        }
-
-        // Hiç bilim adamı yoksa bilgi mesajı göster
-        if (scientistCount == 0)
-        {
-            GameObject infoObj = Instantiate(scientistButtonPrefab, scientistListContainer);
-            spawnedScientistButtons.Add(infoObj);
-
-            var button = infoObj.GetComponent<Button>();
-            if (button != null) button.interactable = false;
-
-            var texts = infoObj.GetComponentsInChildren<TextMeshProUGUI>();
-            if (texts.Length > 0)
-            {
-                texts[0].text = "Eğitimli bilim adamı yok!\nTeklifi reddetmelisiniz.";
             }
         }
     }
@@ -391,18 +402,25 @@ public class ScientistSmuggleUI : MonoBehaviour
             spawnedChoiceButtons.Add(buttonObj);
 
             var button = buttonObj.GetComponent<Button>();
-            var texts = buttonObj.GetComponentsInChildren<TextMeshProUGUI>();
-
-            // Seçenek bilgilerini göster
-            if (texts.Length > 0)
+            
+            // ScientistSmuggleChoiceButton varsa onu kullan
+            var choiceButton = buttonObj.GetComponent<ScientistSmuggleChoiceButton>();
+            if (choiceButton != null)
             {
-                string modifiers = BuildModifierText(choice);
-                texts[0].text = $"{choice.displayName}\n" +
-                                $"<size=80%>{choice.description}</size>\n" +
-                                $"<size=70%><color=#888888>{modifiers}</color></size>";
+                choiceButton.SetupChoice(choice);
+            }
+            else
+            {
+                // Fallback: ilk text'i bul ve doldur
+                var text = buttonObj.GetComponentInChildren<TextMeshProUGUI>();
+                if (text != null)
+                {
+                    string modifiers = BuildModifierText(choice);
+                    text.text = $"{choice.displayName}\n{choice.description}\n<size=80%><color=#888888>{modifiers}</color></size>";
+                }
             }
 
-            int capturedIndex = i; // Closure için
+            int capturedIndex = i;
             button.onClick.AddListener(() => OnChoiceSelected(capturedIndex));
         }
     }
@@ -634,6 +652,24 @@ public class ScientistSmuggleUI : MonoBehaviour
     // ==================== PUBLIC METODLAR ====================
 
     /// <summary>
+    /// Minigame'i açar ve teklif tetikler. Dışarıdan çağrılır (buton, trigger zone, vs.)
+    /// Inspector'dan butona bu metodu bağla.
+    /// NOT: ScientistSmuggleManager.GenerateOffer() metodunu public yapmanız gerekiyor.
+    /// </summary>
+    public void OpenAndTriggerOffer()
+    {
+        gameObject.SetActive(true);
+        
+        if (ScientistSmuggleManager.Instance == null) return;
+        
+        // Zaten aktif bir operasyon varsa sadece UI'ı göster
+        if (ScientistSmuggleManager.Instance.IsActive()) return;
+        
+        // Manager'dan teklif tetikle
+        ScientistSmuggleManager.Instance.GenerateOffer();
+    }
+
+    /// <summary>
     /// Minigame UI'ını açar. Dışarıdan çağrılır.
     /// Eğer aktif bir operasyon varsa ilgili paneli gösterir.
     /// </summary>
@@ -693,12 +729,4 @@ public class ScientistSmuggleUI : MonoBehaviour
         int secs = Mathf.FloorToInt(seconds % 60f);
         return $"{mins}:{secs:D2}";
     }
-    
-    public void ShowOfferDirectly(ScientistSmuggleEvent offer)
-    {
-        if (offer == null || offer.eventType != ScientistSmuggleEventType.Offer) return;
-    
-        ShowOfferPanel(offer);
-    }
 }
-

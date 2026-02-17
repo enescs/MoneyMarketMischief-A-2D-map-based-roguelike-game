@@ -258,7 +258,7 @@ public class ScientistSmuggleManager : MonoBehaviour
     /// <summary>
     /// Havuzdan teklif eventi seçer, sunar.
     /// </summary>
-    private void GenerateOffer()
+    public void GenerateOffer()
     {
         if (database.offerEvents == null || database.offerEvents.Count == 0) return;
 
