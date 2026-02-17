@@ -23,13 +23,15 @@ MonoBehaviour:
   prerequisites:
   - {fileID: 11400000, guid: 768c13daaea0f0d4da14fbda34bb8f50, type: 2}
   effects:
-  - rid: 2638472920323326022
+  - rid: 2638473143635148866
   otherPrerequisites: 0
   blocksSkills: []
   references:
     version: 2
     RefIds:
-    - rid: 2638472920323326022
-      type: {class: PassiveIncomeEffect, ns: , asm: Assembly-CSharp}
+    - rid: 2638473143635148866
+      type: {class: UnlockJewelerEffect, ns: , asm: Assembly-CSharp}
       data:
-        products: []
+        availableJewelers:
+        - {fileID: 11400000, guid: 0be77fa605d5ae7468e37278f6a0bc93, type: 2}
+        - {fileID: 11400000, guid: 5d60dd03e440d75408b47c5ac8236613, type: 2}

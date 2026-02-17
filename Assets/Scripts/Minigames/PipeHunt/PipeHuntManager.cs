@@ -155,6 +155,7 @@ public class PipeHuntManager : MonoBehaviour
     public void HitPipe(int pipeId)
     {
         if (!IsPlaying()) return;
+        if (toolRemainingDurability <= 0) return; //alet kırıksa vuruş yapılamaz
 
         PipeInstance pipe = GetPipeById(pipeId);
         if (pipe == null || pipe.isBurst) return;
@@ -179,12 +180,11 @@ public class PipeHuntManager : MonoBehaviour
             OnPipeHit?.Invoke(pipe, pipe.remainingDurability);
         }
 
-        //alet kırıldı mı
+        //alet kırıldı — oyun devam eder, sadece vuruş yapılamaz
         if (toolRemainingDurability <= 0)
         {
             toolRemainingDurability = 0;
             OnToolBroken?.Invoke();
-            FinishGame(PipeHuntEndReason.ToolBroken);
         }
     }
 
@@ -196,18 +196,18 @@ public class PipeHuntManager : MonoBehaviour
     public void HitEmpty()
     {
         if (!IsPlaying()) return;
+        if (toolRemainingDurability <= 0) return; //alet kırıksa vuruş yapılamaz
 
         //alete hasar ver (her vuruş 1 dayanıklılık düşürür)
         toolRemainingDurability--;
         OnToolDamaged?.Invoke(toolRemainingDurability);
         OnEmptyHit?.Invoke(toolRemainingDurability);
 
-        //alet kırıldı mı
+        //alet kırıldı — oyun devam eder, sadece vuruş yapılamaz
         if (toolRemainingDurability <= 0)
         {
             toolRemainingDurability = 0;
             OnToolBroken?.Invoke();
-            FinishGame(PipeHuntEndReason.ToolBroken);
         }
     }
 
@@ -273,7 +273,8 @@ public class PipeHuntManager : MonoBehaviour
 
         int maxAttempts = 100; //sonsuz döngü koruması
 
-        for (int i = 0; i < database.pipeCount; i++)
+        int pipeCount = UnityEngine.Random.Range(database.minPipeCount, database.maxPipeCount + 1);
+        for (int i = 0; i < pipeCount; i++)
         {
             //rastgele boru tipi
             PipeType pipeType = database.pipeTypes[UnityEngine.Random.Range(0, database.pipeTypes.Count)];
@@ -472,7 +473,6 @@ public enum PipeHuntState
 public enum PipeHuntEndReason
 {
     PlayerLeft,   //oyuncu kendi çıktı
-    ToolBroken,   //alet kırıldı
     GameOver      //şüphe %100'e ulaştı — tüm oyun bitti
 }
 

@@ -6,7 +6,8 @@ public class PipeHuntDatabase : ScriptableObject
 {
     [Header("Borular")]
     public List<PipeType> pipeTypes; //oyunda çıkabilecek boru tipleri
-    public int pipeCount = 8; //her oyunda zemine dağıtılan boru sayısı
+    public int minPipeCount = 5; //minimum boru sayısı
+    public int maxPipeCount = 10; //maximum boru sayısı
 
     [Header("Aletler")]
     public List<HuntTool> tools; //oyuncunun seçebileceği alet tipleri
