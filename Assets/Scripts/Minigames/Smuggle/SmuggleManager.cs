@@ -14,6 +14,9 @@ public class SmuggleManager : MonoBehaviour
     public float eventCheckInterval = 15f;
     public float eventDecisionTime = 10f;
 
+    [Header("Şüphe Ayarları")]
+    public int jewelersForFullReduction = 3; //bu kadar kuyumcu sabit şüpheyi tamamen sıfırlar
+
     private SmuggleState currentState = SmuggleState.Idle;
     private SmuggleRoutePack currentRoutePack;
     private SmuggleRoute selectedRoute;
@@ -356,7 +359,18 @@ public class SmuggleManager : MonoBehaviour
         result.courier = selectedCourier;
 
         result.wealthChange = currentRoutePack.baseReward - accumulatedCostModifier;
-        result.suspicionChange = selectedRoute.riskLevel * 0.1f + accumulatedSuspicionModifier;
+
+        //sabit şüphe: kuyumcu sayısına göre azalır, 3+ kuyumcuda sıfırlanır
+        float baseSuspicion = selectedRoute.riskLevel * 0.1f;
+        if (SkillTreeManager.Instance != null)
+        {
+            int jewelers = SkillTreeManager.Instance.GetJewelerCount();
+            if (jewelers >= jewelersForFullReduction)
+                baseSuspicion = 0f;
+            else
+                baseSuspicion *= 1f - ((float)jewelers / jewelersForFullReduction);
+        }
+        result.suspicionChange = baseSuspicion + accumulatedSuspicionModifier;
 
         if (GameStatManager.Instance != null)
         {

@@ -25,7 +25,6 @@ PipeHunt/
 ```
   Idle ──→ Active ──→ Overtime ──→ Finished ──→ Idle
             │                        │
-            │    ToolBroken          │    ToolBroken
             │    PlayerLeft          │    PlayerLeft
             │         │              │    GameOver
             │         ▼              │       │
@@ -34,6 +33,8 @@ PipeHunt/
                     ▼                        ▼
                   Idle               GameManager.EndGame()
 ```
+
+Not: Alet kırılınca oyun bitmez — sadece vuruş yapılamaz. Patlayan borular gelir üretmeye devam eder, oyuncu istediğinde LeaveGame ile çıkar.
 
 | State | Aciklama | Timer | Gelir | Suphe | Oyuncu Aksiyonlari |
 |---|---|---|---|---|---|
@@ -73,7 +74,7 @@ Sırasıyla şunlar olur:
    - TrySpendWealth(tool.cost) → wealth kesilir
 5. Boru uretimi (GeneratePipes):
    - database.pipeTypes'tan rastgele tip secer
-   - database.pipeCount kadar boru olusturur
+   - Random.Range(minPipeCount, maxPipeCount+1) kadar boru olusturur
    - Her boru icin normalize (0-1) pozisyon uretir
    - Borular arasi minimum mesafe kontrolu yapar (minPipeDistance)
    - 100 deneme icinde pozisyon bulamazsa o boruyu atlar
@@ -105,11 +106,12 @@ Oyuncu ekrana dokundu ve dokunma noktasi bir borunun uzerine denk geldi.
 UI dokunma pozisyonunu kontrol eder, bir boruya denk geldiyse o borunun id'sini bu metoda gonderir.
 
 ```
-1. Boru bulunur (id ile aranır)
-2. Zaten patlaksa → return
-3. pipe.remainingDurability -= tool.damagePerHit
-4. toolRemainingDurability -= 1 (her vuruş 1 düşürür)
-5. OnToolDamaged(kalanDayaniklilik)
+1. Alet kırıksa (toolRemainingDurability <= 0) → return
+2. Boru bulunur (id ile aranır)
+3. Zaten patlaksa → return
+4. pipe.remainingDurability -= tool.damagePerHit
+5. toolRemainingDurability -= 1 (her vuruş 1 düşürür)
+6. OnToolDamaged(kalanDayaniklilik)
 
    Boru patladıysa (remainingDurability <= 0):
      → isBurst = true
@@ -118,9 +120,8 @@ UI dokunma pozisyonunu kontrol eder, bir boruya denk geldiyse o borunun id'sini 
    Patlamadıysa:
      → OnPipeHit(pipe, kalanDayaniklilik)
 
-6. Alet kırıldıysa (toolRemainingDurability <= 0):
-     → OnToolBroken
-     → FinishGame(ToolBroken)
+7. Alet kırıldıysa (toolRemainingDurability <= 0):
+     → OnToolBroken (oyun devam eder, sadece vuruş yapılamaz)
 ```
 
 **Bos zemine vurus — HitEmpty():**
@@ -130,10 +131,11 @@ UI dokunma pozisyonunu kontrol eder, hicbir boruya denk gelmediyse bu metodu cag
 Alet yine asinir ama hicbir boru hasar almaz — bosa vurus.
 
 ```
-1. toolRemainingDurability -= 1
-2. OnToolDamaged(kalanDayaniklilik)
-3. OnEmptyHit(kalanDayaniklilik)
-4. Alet kırıldıysa → FinishGame(ToolBroken)
+1. Alet kırıksa (toolRemainingDurability <= 0) → return
+2. toolRemainingDurability -= 1
+3. OnToolDamaged(kalanDayaniklilik)
+4. OnEmptyHit(kalanDayaniklilik)
+5. Alet kırıldıysa → OnToolBroken (oyun devam eder, sadece vuruş yapılamaz)
 ```
 
 **Oyuncu cikis — LeaveGame():**
@@ -249,7 +251,7 @@ Gercekte her boru farkli zamanda patlar, bu yuzden hesap frame-bazli birikim sek
 - stealth=0.1 → kisa sure, genelde guclu/pahali alet
 - stealth=0.9 → uzun sure, genelde zayif/ucuz alet
 
-Alet her vuruşta 1 dayaniklilik kaybeder — boruya vursa da bosa vursa da. Alet kirilinca oyun biter (ToolBroken).
+Alet her vuruşta 1 dayaniklilik kaybeder — boruya vursa da bosa vursa da. Alet kirilinca vuruş yapilamaz ama oyun devam eder — patlayan borular gelir uretmeye devam eder, oyuncu istediginde cikar.
 
 ---
 
@@ -320,7 +322,7 @@ Her boru oyun basinda rastgele tipte olusturulur. Pozisyonlar normalize (0-1) ko
 | `totalIncome` | float | Toplam kazanilan gelir |
 | `burstPipeCount` | int | Patlayan boru sayisi |
 | `totalPipeCount` | int | Toplam boru sayisi |
-| `endReason` | PipeHuntEndReason | PlayerLeft / ToolBroken / GameOver |
+| `endReason` | PipeHuntEndReason | PlayerLeft / GameOver |
 | `remainingTime` | float | Active'de ciktiysa kalan sure |
 | `toolUsed` | HuntTool | Kullanilan alet |
 | `toolCostPaid` | int | Odenen alet maliyeti |
@@ -355,7 +357,8 @@ Hierarchy > Create Empty > "PipeHuntManager"
 ```
 [Borular]
 pipeTypes: copper_pipe, steel_pipe, gold_pipe
-pipeCount: 8
+minPipeCount: 5
+maxPipeCount: 10
 
 [Aletler]
 tools: shovel, pickaxe, jackhammer
