@@ -18,6 +18,6 @@ MonoBehaviour:
     sustained damage output, at the cost of increased operational risk.
   icon: {fileID: 0}
   cost: 0
-  durability: 0
-  damagePerHit: 0
-  stealth: 0
+  durability: 8
+  damagePerHit: 5
+  stealth: 0.4

@@ -18,6 +18,6 @@ MonoBehaviour:
     but the noise can quickly draw unwanted attention.
   icon: {fileID: 0}
   cost: 0
-  durability: 0
-  damagePerHit: 0
-  stealth: 0
+  durability: 5
+  damagePerHit: 3
+  stealth: 0.65

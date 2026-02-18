@@ -12,11 +12,33 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bfbaecc4cb0677840a36451123fe4ad1, type: 3}
   m_Name: StrategicOilFieldsTargeted
   m_EditorClassIdentifier: Assembly-CSharp::WarForOilEvent
-  id: 
-  displayName: 
-  description: 
+  id: wfoevent03
+  displayName: Strategic Oil Fields Targeted
+  description: "The military plans to strike key strategic oil fields to cut off
+    the enemy\u2019s revenue stream. The move could shift the course of the war,
+    but may carry severe economic and diplomatic consequences."
   devNote: 
   minWarTime: 0
   decisionTime: 10
-  choices: []
+  isRepeatable: 0
+  maxRepeatCount: 1
+  choices:
+  - displayName: Authorize the Strike
+    description: Approve the strike on the oil fields; the military gains short-term
+      strategic advantage, but destroyed infrastructure increases post-war acquisition
+      costs and ultimately reduces the overall reward.
+    supportModifier: 3
+    suspicionModifier: 0
+    politicalInfluenceModifier: 0
+    costModifier: 0
+    endsWar: 0
+    warEndDelay: 0
+    reducesReward: 1
+    baseRewardReduction: 0.1
+    endsWarWithDeal: 0
+    dealDelay: 0
+    dealRewardRatio: 0
+    blocksEvents: 0
+    requiredSkills: []
+    statConditions: []
   defaultChoiceIndex: -1

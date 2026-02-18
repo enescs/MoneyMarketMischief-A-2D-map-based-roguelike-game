@@ -13,16 +13,106 @@ MonoBehaviour:
   m_Name: DefenseMinistryEvent
   m_EditorClassIdentifier: Assembly-CSharp::WarForOilEvent
   id: wfoevent01
-  displayName: 
-  description: 
-  minWarTime: 0
-  decisionTime: 10
+  displayName: The Minister of Defense wants to end the war.
+  description: "Rising casualties and political pressure have pushed peace talks
+    to the table. You can sabotage the process, accelerate it, or quietly steer it
+    for your own gain \u2014 but every move will shift your Wealth, Suspicion, and
+    Trust balance."
+  devNote: "Mafya skilleri olu\u015Fturulunca se\xE7eneklere eklenecek\nR\xFC\u015Fvet
+    Skilleri olu\u015Fturulunca eklenecek se\xE7eneklere"
+  minWarTime: 90
+  decisionTime: 30
+  isRepeatable: 0
+  maxRepeatCount: 1
   choices:
-  - displayName: 
-    description: 
+  - displayName: Negotiate With Minister
+    description: Strike a deal with the Minister of Defense to keep the war ongoing
+      in exchange for shifting power and strategic advantages in your favor.
     supportModifier: 0
     suspicionModifier: 0
+    politicalInfluenceModifier: 0
     costModifier: 0
+    endsWar: 0
+    warEndDelay: 0
+    reducesReward: 0
+    baseRewardReduction: 0
+    endsWarWithDeal: 0
+    dealDelay: 0
+    dealRewardRatio: 0
+    blocksEvents: 0
     requiredSkills: []
     statConditions: []
-  defaultChoiceIndex: -1
+  - displayName: Support Peace
+    description: Work alongside the Minister of Defense to accelerate the peace process
+      and bring the conflict to a controlled end.
+    supportModifier: 2
+    suspicionModifier: 0
+    politicalInfluenceModifier: 0
+    costModifier: 0
+    endsWar: 1
+    warEndDelay: 12
+    reducesReward: 0
+    baseRewardReduction: 0
+    endsWarWithDeal: 0
+    dealDelay: 0
+    dealRewardRatio: 0
+    blocksEvents: 0
+    requiredSkills: []
+    statConditions: []
+  - displayName: Remove from Office
+    description: Use your political influence to have the Minister of Defense dismissed
+      and reshape control over the war effort.
+    supportModifier: 1
+    suspicionModifier: 2
+    politicalInfluenceModifier: 0
+    costModifier: 0
+    endsWar: 0
+    warEndDelay: 0
+    reducesReward: 0
+    baseRewardReduction: 0
+    endsWarWithDeal: 0
+    dealDelay: 0
+    dealRewardRatio: 0
+    blocksEvents: 0
+    requiredSkills: []
+    statConditions:
+    - statType: 3
+      comparison: 2
+      value: 65
+  - displayName: K*ll
+    description: Silently remove the Minister of Defense, throwing the peace process
+      into chaos and forcibly shifting the balance of power.
+    supportModifier: 0.5
+    suspicionModifier: 4
+    politicalInfluenceModifier: 0
+    costModifier: 0
+    endsWar: 0
+    warEndDelay: 0
+    reducesReward: 0
+    baseRewardReduction: 0
+    endsWarWithDeal: 0
+    dealDelay: 0
+    dealRewardRatio: 0
+    blocksEvents: 0
+    requiredSkills:
+    - {fileID: 0}
+    statConditions: []
+  - displayName: Bribe and Persuade
+    description: Win over the Minister of Defense with financial incentives and steer
+      his decisions toward your strategic interests.
+    supportModifier: 1
+    suspicionModifier: 2
+    politicalInfluenceModifier: 0
+    costModifier: 0
+    endsWar: 0
+    warEndDelay: 0
+    reducesReward: 0
+    baseRewardReduction: 0
+    endsWarWithDeal: 0
+    dealDelay: 0
+    dealRewardRatio: 0
+    blocksEvents: 0
+    requiredSkills:
+    - {fileID: 0}
+    statConditions: []
+  defaultChoiceIndex: 0

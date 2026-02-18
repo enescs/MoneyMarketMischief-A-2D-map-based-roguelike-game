@@ -12,11 +12,68 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bfbaecc4cb0677840a36451123fe4ad1, type: 3}
   m_Name: Leverage Through Family
   m_EditorClassIdentifier: Assembly-CSharp::WarForOilEvent
-  id: 
-  displayName: 
-  description: 
-  devNote: 
+  id: wfoevent03
+  displayName: Leverage Through Family
+  description: A foreign intelligence agency is threatening to kidnap your child
+    to force certain decisions. This crisis puts you between personal safety and
+    strategic interests, potentially impacting your Wealth, Suspicion, and Trust
+    balance.
+  devNote: "mafya skilleri olu\u015Fturuldu\u011Funda se\xE7enekler k\u0131sm\u0131na
+    eklenecek"
   minWarTime: 0
-  decisionTime: 10
-  choices: []
-  defaultChoiceIndex: -1
+  decisionTime: 31
+  isRepeatable: 0
+  maxRepeatCount: 1
+  choices:
+  - displayName: Ignore the Threats
+    description: Refuse to bend under pressure and keep your course unchanged
+    supportModifier: 0.3
+    suspicionModifier: 0
+    politicalInfluenceModifier: 0
+    costModifier: 0
+    endsWar: 0
+    warEndDelay: 0
+    reducesReward: 0
+    baseRewardReduction: 0
+    endsWarWithDeal: 0
+    dealDelay: 0
+    dealRewardRatio: 0
+    blocksEvents: 0
+    requiredSkills: []
+    statConditions: []
+  - displayName: Step Down and Walk Away
+    description: Step away from the spotlight and pull all your support from the
+      war to prevent further escalation.
+    supportModifier: -5
+    suspicionModifier: 0
+    politicalInfluenceModifier: 0
+    costModifier: 0
+    endsWar: 0
+    warEndDelay: 0
+    reducesReward: 0
+    baseRewardReduction: 0
+    endsWarWithDeal: 0
+    dealDelay: 0
+    dealRewardRatio: 0
+    blocksEvents: 1
+    requiredSkills: []
+    statConditions: []
+  - displayName: Send the Mafia
+    description: Use your mafia to track down those behind the threat and deal with
+      them, but expect a significant rise in Suspicion.
+    supportModifier: 2
+    suspicionModifier: 0.5
+    politicalInfluenceModifier: 0
+    costModifier: 0
+    endsWar: 0
+    warEndDelay: 0
+    reducesReward: 0
+    baseRewardReduction: 0
+    endsWarWithDeal: 0
+    dealDelay: 0
+    dealRewardRatio: 0
+    blocksEvents: 0
+    requiredSkills:
+    - {fileID: 0}
+    statConditions: []
+  defaultChoiceIndex: 0

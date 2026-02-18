@@ -12,8 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6a81e7ebc5c65ae479492f25c25aa894, type: 3}
   m_Name: SmuggleData
   m_EditorClassIdentifier: Assembly-CSharp::MiniGameData
-  id: 
-  displayName: 
+  id: mg01
+  displayName: Smuggle Across The Borders
   icon: {fileID: 0}
   description: 
+  prefab: {fileID: 0}
   cooldownDuration: 300

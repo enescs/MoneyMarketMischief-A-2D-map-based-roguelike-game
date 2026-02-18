@@ -20,4 +20,4 @@ MonoBehaviour:
   cost: 0
   durability: 0
   damagePerHit: 0
-  stealth: 0
+  stealth: 0.05

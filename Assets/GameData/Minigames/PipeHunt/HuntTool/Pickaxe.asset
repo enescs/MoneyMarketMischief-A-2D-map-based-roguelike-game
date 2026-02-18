@@ -18,6 +18,6 @@ MonoBehaviour:
     inefficient, but quiet enough for low-risk operations.
   icon: {fileID: 0}
   cost: 0
-  durability: 0
-  damagePerHit: 0
-  stealth: 0
+  durability: 4
+  damagePerHit: 3
+  stealth: 0.9

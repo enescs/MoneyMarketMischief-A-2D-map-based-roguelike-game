@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6a81e7ebc5c65ae479492f25c25aa894, type: 3}
   m_Name: WarForOilData
   m_EditorClassIdentifier: Assembly-CSharp::MiniGameData
-  id: 
+  id: mg04
   displayName: 
   icon: {fileID: 0}
   description: 

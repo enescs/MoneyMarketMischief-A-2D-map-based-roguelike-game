@@ -31,4 +31,5 @@ MonoBehaviour:
     - rid: 2638473143635148869
       type: {class: UnlockMinigameEffect, ns: , asm: Assembly-CSharp}
       data:
-        minigamesToBeUnlocked: []
+        minigamesToBeUnlocked:
+        - {fileID: 11400000, guid: dda2b5d28c53d264591e90f95c9c4a8e, type: 2}
