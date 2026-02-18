@@ -8,13 +8,17 @@ public class WarForOilEventEditor : Editor
     //per-choice foldout durumları
     private Dictionary<int, bool> consequenceFoldouts = new Dictionary<int, bool>();
     private Dictionary<int, bool> prerequisiteFoldouts = new Dictionary<int, bool>();
+    private Dictionary<int, bool> chainChoiceFoldouts = new Dictionary<int, bool>();
+    private bool chainFoldout;
 
     public override void OnInspectorGUI()
     {
         serializedObject.Update();
 
-        //choices, maxRepeatCount ve defaultChoiceIndex hariç tüm alanları çiz
-        DrawPropertiesExcluding(serializedObject, "choices", "maxRepeatCount", "defaultChoiceIndex");
+        //choices, maxRepeatCount, defaultChoiceIndex ve zincir alanları hariç tüm alanları çiz
+        DrawPropertiesExcluding(serializedObject,
+            "choices", "maxRepeatCount", "defaultChoiceIndex",
+            "chainRole", "nextChainEvent", "chainInterval", "skillsToLock", "chainFine", "refusalThresholds");
 
         //isRepeatable açıksa maxRepeatCount'u göster
         SerializedProperty isRepeatable = serializedObject.FindProperty("isRepeatable");
@@ -29,6 +33,51 @@ public class WarForOilEventEditor : Editor
 
         //defaultChoiceIndex — isRepeatable'dan sonra çiz
         EditorGUILayout.PropertyField(serializedObject.FindProperty("defaultChoiceIndex"));
+
+        EditorGUILayout.Space();
+
+        //zincir ayarları
+        SerializedProperty chainRole = serializedObject.FindProperty("chainRole");
+        EditorGUILayout.PropertyField(chainRole, new GUIContent("Zincir Rolü"));
+
+        ChainRole role = (ChainRole)chainRole.enumValueIndex;
+
+        if (role == ChainRole.Head)
+        {
+            //head event — tüm zincir config'i + bağlantı
+            EditorGUI.indentLevel++;
+
+            EditorGUILayout.PropertyField(
+                serializedObject.FindProperty("nextChainEvent"),
+                new GUIContent("Sonraki Event"));
+            EditorGUILayout.PropertyField(
+                serializedObject.FindProperty("chainInterval"),
+                new GUIContent("Aralık (sn)"));
+            EditorGUILayout.PropertyField(
+                serializedObject.FindProperty("skillsToLock"),
+                new GUIContent("Kilitlenecek Skill"), true);
+            EditorGUILayout.PropertyField(
+                serializedObject.FindProperty("chainFine"),
+                new GUIContent("Çöküş Cezası"));
+            EditorGUILayout.PropertyField(
+                serializedObject.FindProperty("refusalThresholds"),
+                new GUIContent("Ret Eşikleri"), true);
+
+            EditorGUI.indentLevel--;
+        }
+        else if (role == ChainRole.Link)
+        {
+            //ara zincir event'i — sadece bağlantı alanları
+            EditorGUI.indentLevel++;
+            EditorGUILayout.PropertyField(
+                serializedObject.FindProperty("nextChainEvent"),
+                new GUIContent("Sonraki Event"));
+            EditorGUILayout.PropertyField(
+                serializedObject.FindProperty("chainInterval"),
+                new GUIContent("Aralık (sn)"));
+            EditorGUI.indentLevel--;
+        }
+        //None → hiçbir zincir alanı gösterilmez
 
         EditorGUILayout.Space();
 
@@ -149,6 +198,29 @@ public class WarForOilEventEditor : Editor
 
         EditorGUILayout.Space(2);
 
+        //zincir seçenek flagleri — foldout
+        if (!chainChoiceFoldouts.ContainsKey(index))
+            chainChoiceFoldouts[index] = false;
+        chainChoiceFoldouts[index] = EditorGUILayout.Foldout(
+            chainChoiceFoldouts[index], "Zincir Flagleri", true);
+
+        if (chainChoiceFoldouts[index])
+        {
+            EditorGUI.indentLevel++;
+            EditorGUILayout.PropertyField(
+                choice.FindPropertyRelative("continuesChain"),
+                new GUIContent("Devam Ettir"));
+            EditorGUILayout.PropertyField(
+                choice.FindPropertyRelative("isChainRefusal"),
+                new GUIContent("Reddetme"));
+            EditorGUILayout.PropertyField(
+                choice.FindPropertyRelative("triggersCeasefire"),
+                new GUIContent("Ateşkes"));
+            EditorGUI.indentLevel--;
+        }
+
+        EditorGUILayout.Space(2);
+
         //ön koşullar — foldout
         if (!prerequisiteFoldouts.ContainsKey(index))
             prerequisiteFoldouts[index] = false;
@@ -183,6 +255,9 @@ public class WarForOilEventEditor : Editor
         choice.FindPropertyRelative("dealDelay").floatValue = 0f;
         choice.FindPropertyRelative("dealRewardRatio").floatValue = 0f;
         choice.FindPropertyRelative("blocksEvents").boolValue = false;
+        choice.FindPropertyRelative("continuesChain").boolValue = false;
+        choice.FindPropertyRelative("isChainRefusal").boolValue = false;
+        choice.FindPropertyRelative("triggersCeasefire").boolValue = false;
         choice.FindPropertyRelative("requiredSkills").ClearArray();
         choice.FindPropertyRelative("statConditions").ClearArray();
     }

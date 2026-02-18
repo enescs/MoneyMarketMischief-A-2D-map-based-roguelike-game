@@ -428,6 +428,18 @@ public class SkillTreeManager : MonoBehaviour
         return true;
     }
 
+    /// <summary>
+    /// Skill'i tekrar kilitler. unlockedSkills'den çıkarır ama blockedSkills'e EKLEMEZ.
+    /// Böylece oyuncu tekrar satın alabilir. WarForOil zincir çöküşünde kullanılır.
+    /// </summary>
+    public void RelockSkill(string skillId)
+    {
+        if (string.IsNullOrEmpty(skillId)) return;
+        if (!unlockedSkillIds.Contains(skillId)) return;
+
+        unlockedSkillIds.Remove(skillId);
+    }
+
     public List<Skill> GetAvailableSkills()
     {
         List<Skill> availableSkills = new List<Skill>();

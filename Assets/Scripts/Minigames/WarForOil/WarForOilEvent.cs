@@ -18,6 +18,14 @@ public class WarForOilEvent : ScriptableObject
     public List<WarForOilEventChoice> choices;
     public int defaultChoiceIndex = -1; //süre dolunca otomatik seçilecek seçenek (-1 = ilk seçenek)
 
+    [Header("Zincir Ayarları")]
+    public ChainRole chainRole = ChainRole.None; //bu event zincirde mi, rolü ne
+    public WarForOilEvent nextChainEvent; //sonraki zincir eventi (null = zincirin sonu)
+    public float chainInterval = 5f; //sonraki zincir eventine kadar bekleme süresi (saniye)
+    public List<Skill> skillsToLock; //zincir bittiğinde kilitlenecek skill'ler (sadece head event'te ayarlanır)
+    public float chainFine; //zincir çöktüğünde kesilecek para cezası (sadece head event'te)
+    public List<RefusalThreshold> refusalThresholds; //support'a göre kaç reddetmede zincir çöker (sadece head event'te)
+
     /// <summary>
     /// Şu an seçilebilir olan choice'ların listesini döner.
     /// </summary>
@@ -55,6 +63,11 @@ public class WarForOilEventChoice
     [Range(0f, 1f)] public float dealRewardRatio; //normal kazanımın bu oranı garanti verilir (0.8 = %80)
     public bool blocksEvents; //seçilirse savaş sonuna kadar yeni event gelmez
 
+    //zincir seçenek flagleri (Editor tarafından foldout içinde çizilir)
+    public bool continuesChain; //zinciri devam ettirir (fonlama)
+    public bool isChainRefusal; //zincirde reddetme sayacını artırır
+    public bool triggersCeasefire; //zincirden ateşkes tetikler (minSupport kontrolü yok)
+
     //ön koşullar (Editor tarafından foldout içinde çizilir)
     public List<Skill> requiredSkills; //bu seçenek için açılmış olması gereken skill'ler
     public List<StatCondition> statConditions; //bu seçenek için sağlanması gereken stat koşulları
@@ -85,4 +98,23 @@ public class WarForOilEventChoice
 
         return true;
     }
+}
+
+public enum ChainRole
+{
+    None,   //normal event, zincir dışı
+    Head,   //zincirin başlangıç event'i (config burada)
+    Link    //ara zincir event'i (sadece bağlantı)
+}
+
+/// <summary>
+/// Support aralığına göre zincirde kaç reddetmeye izin verildiğini tanımlar.
+/// Inspector'dan ayarlanır: örn. support 0-30 → 1 ret, 30-60 → 2 ret, 60-100 → 3 ret
+/// </summary>
+[System.Serializable]
+public class RefusalThreshold
+{
+    public float minSupport; //bu aralığın alt sınırı (dahil)
+    public float maxSupport; //bu aralığın üst sınırı (hariç)
+    public int maxRefusals; //bu aralıkta izin verilen max reddetme sayısı
 }
