@@ -293,7 +293,7 @@ public class WarForOilUI : MonoBehaviour
             bool conquered = manager.IsCountryConquered(country);
             txt.text = conquered
                 ? $"<s>{country.displayName}</s>\n<size=70%>CONQUERED</size>"
-                : $"{country.displayName}\n<size=70%>Resources: {country.resourceRichness:P0} | Difficulty: {country.invasionDifficulty:P0}</size>";
+                : $"{country.displayName}\n<size=70%> Difficulty: {country.invasionDifficulty:P0}</size>";
 
             if (btn != null)
             {

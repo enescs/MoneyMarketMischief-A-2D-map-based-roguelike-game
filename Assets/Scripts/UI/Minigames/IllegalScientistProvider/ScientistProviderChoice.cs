@@ -4,9 +4,9 @@ using TMPro;
 
 /// <summary>
 /// Event seçenek butonları için yardımcı component.
-/// Prefab'a eklendiğinde modifier'ları renkli olarak gösterir.
+/// Modifier'ları renkli olarak gösterir.
 /// </summary>
-public class ScientistSmuggleChoiceButton : MonoBehaviour
+public class IllegalScientistProviderChoiceButton : MonoBehaviour
 {
     [Header("UI Referansları")]
     public TextMeshProUGUI titleText;
@@ -31,7 +31,7 @@ public class ScientistSmuggleChoiceButton : MonoBehaviour
     /// <summary>
     /// Seçenek verilerini UI'a uygular.
     /// </summary>
-    public void SetupChoice(ScientistSmuggleEventChoice choice)
+    public void SetupChoice(IllegalScientistProviderEventChoice choice)
     {
         if (titleText != null)
             titleText.text = choice.displayName;
@@ -42,7 +42,6 @@ public class ScientistSmuggleChoiceButton : MonoBehaviour
         if (modifiersText != null)
             modifiersText.text = BuildColoredModifierText(choice);
 
-        // Arka plan rengini genel etkiye göre ayarla
         if (backgroundImage != null)
         {
             float netEffect = CalculateNetEffect(choice);
@@ -55,11 +54,10 @@ public class ScientistSmuggleChoiceButton : MonoBehaviour
         }
     }
 
-    private string BuildColoredModifierText(ScientistSmuggleEventChoice choice)
+    private string BuildColoredModifierText(IllegalScientistProviderEventChoice choice)
     {
         System.Text.StringBuilder sb = new System.Text.StringBuilder();
 
-        // Risk modifier
         if (choice.riskModifier != 0)
         {
             string color = choice.riskModifier > 0 ? ColorToHex(negativeColor) : ColorToHex(positiveColor);
@@ -67,7 +65,6 @@ public class ScientistSmuggleChoiceButton : MonoBehaviour
             sb.Append($"<color={color}>Risk: {sign}{choice.riskModifier * 100:F0}%</color>");
         }
 
-        // Suspicion modifier
         if (choice.suspicionModifier != 0)
         {
             if (sb.Length > 0) sb.Append("  ");
@@ -76,7 +73,6 @@ public class ScientistSmuggleChoiceButton : MonoBehaviour
             sb.Append($"<color={color}>Şüphe: {sign}{choice.suspicionModifier:F1}</color>");
         }
 
-        // Cost modifier
         if (choice.costModifier != 0)
         {
             if (sb.Length > 0) sb.Append("  ");
@@ -91,13 +87,12 @@ public class ScientistSmuggleChoiceButton : MonoBehaviour
         return sb.ToString();
     }
 
-    private float CalculateNetEffect(ScientistSmuggleEventChoice choice)
+    private float CalculateNetEffect(IllegalScientistProviderEventChoice choice)
     {
-        // Basit bir net etki hesabı (negatif = kötü, pozitif = iyi)
         float effect = 0f;
-        effect -= choice.riskModifier;       // Risk artışı kötü
-        effect -= choice.suspicionModifier * 0.1f;  // Şüphe artışı kötü
-        effect -= choice.costModifier * 0.001f;     // Maliyet kötü
+        effect -= choice.riskModifier;
+        effect -= choice.suspicionModifier * 0.1f;
+        effect -= choice.costModifier * 0.001f;
         return effect;
     }
 
@@ -106,25 +101,15 @@ public class ScientistSmuggleChoiceButton : MonoBehaviour
         return $"#{ColorUtility.ToHtmlStringRGB(color)}";
     }
 
-    /// <summary>
-    /// Hover efekti için pointer enter.
-    /// </summary>
     public void OnPointerEnter()
     {
         if (backgroundImage != null && button != null && button.interactable)
-        {
             backgroundImage.color = hoverColor;
-        }
     }
 
-    /// <summary>
-    /// Hover efekti için pointer exit.
-    /// </summary>
     public void OnPointerExit()
     {
         if (backgroundImage != null)
-        {
             backgroundImage.color = normalColor;
-        }
     }
 }

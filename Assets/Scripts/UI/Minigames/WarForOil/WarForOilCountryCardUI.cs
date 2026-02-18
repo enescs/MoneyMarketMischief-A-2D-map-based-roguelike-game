@@ -40,16 +40,10 @@ public class WarForOilCountryCardUI : MonoBehaviour
 
         if (descriptionText != null)
             descriptionText.text = country.description;
-
-        if (resourcesText != null)
-            resourcesText.text = $"Resources: {(country.resourceRichness * 100):F0}%";
-
+        
         if (difficultyText != null)
             difficultyText.text = $"Difficulty: {(country.invasionDifficulty * 100):F0}%";
-
-        // Bars
-        if (resourcesBar != null)
-            resourcesBar.value = country.resourceRichness;
+        
 
         if (difficultyBar != null)
         {

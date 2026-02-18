@@ -141,9 +141,6 @@ public class PipeHuntUI : MonoBehaviour
             case PipeHuntEndReason.PlayerLeft:
                 resultTitleText.text = "Ayrıldın";
                 break;
-            case PipeHuntEndReason.ToolBroken:
-                resultTitleText.text = "Alet Kırıldı!";
-                break;
             case PipeHuntEndReason.GameOver:
                 resultTitleText.text = "YAKALANDIN!";
                 break;

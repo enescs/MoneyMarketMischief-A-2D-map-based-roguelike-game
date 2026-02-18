@@ -4,10 +4,10 @@ using UnityEngine.UI;
 using TMPro;
 
 /// <summary>
-/// ScientistSmuggle minigame UI controller.
+/// IllegalScientistProvider minigame UI controller.
 /// Handles all UI states: Offer, Process, Event choices, Results, and PostProcess.
 /// </summary>
-public class ScientistSmuggleUI : MonoBehaviour
+public class IllegalScientistProviderUI : MonoBehaviour
 {
     [Header("Ana Paneller")]
     public GameObject offerPanel;           // Teklif geldiğinde gösterilen panel
@@ -17,52 +17,52 @@ public class ScientistSmuggleUI : MonoBehaviour
     public GameObject scientistsKilledPanel;// Bilim adamları öldürüldü bildirimi
 
     [Header("Teklif Paneli - Offer Panel")]
-    public TextMeshProUGUI offerTitleText;          // Ülke/teklif adı
-    public TextMeshProUGUI offerDescriptionText;    // Ülke durumu açıklaması
-    public TextMeshProUGUI offerRewardText;         // Taban ödül
-    public TextMeshProUGUI offerRiskText;           // Risk seviyesi
-    public Slider offerTimerSlider;                 // Karar süresi slider
-    public TextMeshProUGUI offerTimerText;          // Karar süresi text
-    public Transform scientistListContainer;        // Bilim adamı butonlarının parent'ı
-    public GameObject scientistButtonPrefab;        // Bilim adamı seçim butonu prefab'ı
-    public Button rejectOfferButton;                // Reddet butonu
+    public TextMeshProUGUI offerTitleText;
+    public TextMeshProUGUI offerDescriptionText;
+    public TextMeshProUGUI offerRewardText;
+    public TextMeshProUGUI offerRiskText;
+    public Slider offerTimerSlider;
+    public TextMeshProUGUI offerTimerText;
+    public Transform scientistListContainer;
+    public GameObject scientistButtonPrefab;
+    public Button rejectOfferButton;
 
     [Header("Süreç Paneli - Process Panel")]
-    public TextMeshProUGUI processTargetText;       // Hedef ülke adı
-    public Slider processProgressSlider;            // Operasyon ilerleme çubuğu
-    public TextMeshProUGUI processProgressText;     // İlerleme yüzdesi
-    public Slider riskMeterSlider;                  // Risk göstergesi
-    public TextMeshProUGUI riskMeterText;           // Risk yüzdesi
-    public TextMeshProUGUI accumulatedStatsText;    // Biriken modifier'lar (opsiyonel debug)
-    public GameObject postProcessIndicator;         // PostProcess modunda olduğunu gösteren indicator
+    public TextMeshProUGUI processTargetText;
+    public Slider processProgressSlider;
+    public TextMeshProUGUI processProgressText;
+    public Slider riskMeterSlider;
+    public TextMeshProUGUI riskMeterText;
+    public TextMeshProUGUI accumulatedStatsText;
+    public GameObject postProcessIndicator;
 
     [Header("Event Paneli - Event Panel")]
-    public TextMeshProUGUI eventTitleText;          // Event başlığı
-    public TextMeshProUGUI eventDescriptionText;    // Event açıklaması
-    public Transform choiceButtonContainer;         // Seçenek butonlarının parent'ı
-    public GameObject choiceButtonPrefab;           // Seçenek butonu prefab'ı
-    public Slider eventTimerSlider;                 // Event karar süresi slider
-    public TextMeshProUGUI eventTimerText;          // Event karar süresi text
+    public TextMeshProUGUI eventTitleText;
+    public TextMeshProUGUI eventDescriptionText;
+    public Transform choiceButtonContainer;
+    public GameObject choiceButtonPrefab;
+    public Slider eventTimerSlider;
+    public TextMeshProUGUI eventTimerText;
 
     [Header("Sonuç Paneli - Result Panel")]
-    public TextMeshProUGUI resultTitleText;         // Başarılı/Başarısız
-    public TextMeshProUGUI resultDescriptionText;   // Sonuç açıklaması
-    public TextMeshProUGUI resultWealthText;        // Kazanç/kayıp
-    public TextMeshProUGUI resultSuspicionText;     // Şüphe değişimi
-    public Button resultContinueButton;             // Devam butonu (PostProcess'e geçiş veya kapatma)
+    public TextMeshProUGUI resultTitleText;
+    public TextMeshProUGUI resultDescriptionText;
+    public TextMeshProUGUI resultWealthText;
+    public TextMeshProUGUI resultSuspicionText;
+    public Button resultContinueButton;
 
     [Header("Öldürülen Bilim Adamları Paneli")]
-    public TextMeshProUGUI killedScientistsText;    // Öldürülen bilim adamları listesi
-    public Button killedAcknowledgeButton;          // Tamam butonu
+    public TextMeshProUGUI killedScientistsText;
+    public Button killedAcknowledgeButton;
 
     [Header("Renkler")]
-    public Color lowRiskColor = new Color(0.2f, 0.8f, 0.2f);    // Düşük risk (yeşil)
-    public Color mediumRiskColor = new Color(0.9f, 0.7f, 0.1f); // Orta risk (sarı)
-    public Color highRiskColor = new Color(0.9f, 0.2f, 0.2f);   // Yüksek risk (kırmızı)
+    public Color lowRiskColor = new Color(0.2f, 0.8f, 0.2f);
+    public Color mediumRiskColor = new Color(0.9f, 0.7f, 0.1f);
+    public Color highRiskColor = new Color(0.9f, 0.2f, 0.2f);
 
-    // Runtime değişkenler
-    private ScientistSmuggleEvent currentOffer;
-    private ScientistSmuggleEvent currentEvent;
+    // Runtime
+    private IllegalScientistProviderEvent currentOffer;
+    private IllegalScientistProviderEvent currentEvent;
     private List<GameObject> spawnedScientistButtons = new List<GameObject>();
     private List<GameObject> spawnedChoiceButtons = new List<GameObject>();
 
@@ -70,41 +70,38 @@ public class ScientistSmuggleUI : MonoBehaviour
 
     private void OnEnable()
     {
-        // Event'lere abone ol
-        ScientistSmuggleManager.OnOfferReceived += HandleOfferReceived;
-        ScientistSmuggleManager.OnOfferDecisionTimerUpdate += HandleOfferTimerUpdate;
-        ScientistSmuggleManager.OnProcessStarted += HandleProcessStarted;
-        ScientistSmuggleManager.OnProcessProgress += HandleProcessProgress;
-        ScientistSmuggleManager.OnSmuggleEventTriggered += HandleEventTriggered;
-        ScientistSmuggleManager.OnEventDecisionTimerUpdate += HandleEventTimerUpdate;
-        ScientistSmuggleManager.OnSmuggleEventResolved += HandleEventResolved;
-        ScientistSmuggleManager.OnMinigameFailed += HandleMinigameFailed;
-        ScientistSmuggleManager.OnProcessCompleted += HandleProcessCompleted;
-        ScientistSmuggleManager.OnPostProcessStarted += HandlePostProcessStarted;
-        ScientistSmuggleManager.OnPostProcessEnded += HandlePostProcessEnded;
-        ScientistSmuggleManager.OnScientistsKilled += HandleScientistsKilled;
+        IllegalScientistProviderManager.OnOfferReceived += HandleOfferReceived;
+        IllegalScientistProviderManager.OnOfferDecisionTimerUpdate += HandleOfferTimerUpdate;
+        IllegalScientistProviderManager.OnProcessStarted += HandleProcessStarted;
+        IllegalScientistProviderManager.OnProcessProgress += HandleProcessProgress;
+        IllegalScientistProviderManager.OnSmuggleEventTriggered += HandleEventTriggered;
+        IllegalScientistProviderManager.OnEventDecisionTimerUpdate += HandleEventTimerUpdate;
+        IllegalScientistProviderManager.OnSmuggleEventResolved += HandleEventResolved;
+        IllegalScientistProviderManager.OnMinigameFailed += HandleMinigameFailed;
+        IllegalScientistProviderManager.OnProcessCompleted += HandleProcessCompleted;
+        IllegalScientistProviderManager.OnPostProcessStarted += HandlePostProcessStarted;
+        IllegalScientistProviderManager.OnPostProcessEnded += HandlePostProcessEnded;
+        IllegalScientistProviderManager.OnScientistsKilled += HandleScientistsKilled;
     }
 
     private void OnDisable()
     {
-        // Event'lerden çık
-        ScientistSmuggleManager.OnOfferReceived -= HandleOfferReceived;
-        ScientistSmuggleManager.OnOfferDecisionTimerUpdate -= HandleOfferTimerUpdate;
-        ScientistSmuggleManager.OnProcessStarted -= HandleProcessStarted;
-        ScientistSmuggleManager.OnProcessProgress -= HandleProcessProgress;
-        ScientistSmuggleManager.OnSmuggleEventTriggered -= HandleEventTriggered;
-        ScientistSmuggleManager.OnEventDecisionTimerUpdate -= HandleEventTimerUpdate;
-        ScientistSmuggleManager.OnSmuggleEventResolved -= HandleEventResolved;
-        ScientistSmuggleManager.OnMinigameFailed -= HandleMinigameFailed;
-        ScientistSmuggleManager.OnProcessCompleted -= HandleProcessCompleted;
-        ScientistSmuggleManager.OnPostProcessStarted -= HandlePostProcessStarted;
-        ScientistSmuggleManager.OnPostProcessEnded -= HandlePostProcessEnded;
-        ScientistSmuggleManager.OnScientistsKilled -= HandleScientistsKilled;
+        IllegalScientistProviderManager.OnOfferReceived -= HandleOfferReceived;
+        IllegalScientistProviderManager.OnOfferDecisionTimerUpdate -= HandleOfferTimerUpdate;
+        IllegalScientistProviderManager.OnProcessStarted -= HandleProcessStarted;
+        IllegalScientistProviderManager.OnProcessProgress -= HandleProcessProgress;
+        IllegalScientistProviderManager.OnSmuggleEventTriggered -= HandleEventTriggered;
+        IllegalScientistProviderManager.OnEventDecisionTimerUpdate -= HandleEventTimerUpdate;
+        IllegalScientistProviderManager.OnSmuggleEventResolved -= HandleEventResolved;
+        IllegalScientistProviderManager.OnMinigameFailed -= HandleMinigameFailed;
+        IllegalScientistProviderManager.OnProcessCompleted -= HandleProcessCompleted;
+        IllegalScientistProviderManager.OnPostProcessStarted -= HandlePostProcessStarted;
+        IllegalScientistProviderManager.OnPostProcessEnded -= HandlePostProcessEnded;
+        IllegalScientistProviderManager.OnScientistsKilled -= HandleScientistsKilled;
     }
 
     private void Start()
     {
-        // Buton listener'ları
         if (rejectOfferButton != null)
             rejectOfferButton.onClick.AddListener(OnRejectOfferClicked);
 
@@ -114,24 +111,21 @@ public class ScientistSmuggleUI : MonoBehaviour
         if (killedAcknowledgeButton != null)
             killedAcknowledgeButton.onClick.AddListener(OnKilledAcknowledgeClicked);
 
-        // DEBUG: Slider referanslarını kontrol et
-        Debug.Log($"[ScientistSmuggleUI] offerTimerSlider: {(offerTimerSlider != null ? "OK" : "NULL")}");
-        Debug.Log($"[ScientistSmuggleUI] eventTimerSlider: {(eventTimerSlider != null ? "OK" : "NULL")}");
-        Debug.Log($"[ScientistSmuggleUI] processProgressSlider: {(processProgressSlider != null ? "OK" : "NULL")}");
-        Debug.Log($"[ScientistSmuggleUI] riskMeterSlider: {(riskMeterSlider != null ? "OK" : "NULL")}");
+        Debug.Log($"[IllegalScientistProviderUI] offerTimerSlider: {(offerTimerSlider != null ? "OK" : "NULL")}");
+        Debug.Log($"[IllegalScientistProviderUI] eventTimerSlider: {(eventTimerSlider != null ? "OK" : "NULL")}");
+        Debug.Log($"[IllegalScientistProviderUI] processProgressSlider: {(processProgressSlider != null ? "OK" : "NULL")}");
+        Debug.Log($"[IllegalScientistProviderUI] riskMeterSlider: {(riskMeterSlider != null ? "OK" : "NULL")}");
 
-        // Başlangıçta tüm panelleri gizle
         HideAllPanels();
     }
 
     private void Update()
     {
-        // Risk göstergesini sürekli güncelle (process sırasında)
-        if (ScientistSmuggleManager.Instance != null)
+        if (IllegalScientistProviderManager.Instance != null)
         {
-            var state = ScientistSmuggleManager.Instance.GetCurrentState();
-            if (state == ScientistSmuggleState.ActiveProcess ||
-                state == ScientistSmuggleState.EventPhase)
+            var state = IllegalScientistProviderManager.Instance.GetCurrentState();
+            if (state == IllegalScientistProviderState.ActiveProcess ||
+                state == IllegalScientistProviderState.EventPhase)
             {
                 UpdateRiskMeter();
             }
@@ -149,7 +143,7 @@ public class ScientistSmuggleUI : MonoBehaviour
         if (scientistsKilledPanel != null) scientistsKilledPanel.SetActive(false);
     }
 
-    private void ShowOfferPanel(ScientistSmuggleEvent offer)
+    private void ShowOfferPanel(IllegalScientistProviderEvent offer)
     {
         HideAllPanels();
         if (offerPanel == null) return;
@@ -157,7 +151,6 @@ public class ScientistSmuggleUI : MonoBehaviour
         offerPanel.SetActive(true);
         currentOffer = offer;
 
-        // Teklif bilgilerini doldur
         if (offerTitleText != null)
             offerTitleText.text = offer.displayName;
 
@@ -174,18 +167,16 @@ public class ScientistSmuggleUI : MonoBehaviour
             offerRiskText.color = GetRiskColor(offer.riskLevel);
         }
 
-        // Timer başlangıç değeri
         if (offerTimerSlider != null)
         {
             offerTimerSlider.maxValue = offer.decisionTime;
             offerTimerSlider.value = offer.decisionTime;
         }
 
-        // Bilim adamı listesini doldur
         PopulateScientistList();
     }
 
-    private void ShowProcessPanel(ScientistSmuggleEvent offer, float duration)
+    private void ShowProcessPanel(IllegalScientistProviderEvent offer, float duration)
     {
         HideAllPanels();
         if (processPanel == null) return;
@@ -210,7 +201,7 @@ public class ScientistSmuggleUI : MonoBehaviour
         UpdateRiskMeter();
     }
 
-    private void ShowEventPanel(ScientistSmuggleEvent evt)
+    private void ShowEventPanel(IllegalScientistProviderEvent evt)
     {
         if (eventPanel == null) return;
 
@@ -229,7 +220,6 @@ public class ScientistSmuggleUI : MonoBehaviour
             eventTimerSlider.value = evt.decisionTime;
         }
 
-        // Seçenek butonlarını oluştur
         PopulateChoiceButtons(evt);
     }
 
@@ -242,9 +232,8 @@ public class ScientistSmuggleUI : MonoBehaviour
         ClearChoiceButtons();
     }
 
-    private void ShowResultPanel(bool success, ScientistSmuggleResult result)
+    private void ShowResultPanel(bool success, IllegalScientistProviderResult result)
     {
-        // Event paneli açıksa kapat
         HideEventPanel();
 
         if (resultPanel == null) return;
@@ -324,7 +313,6 @@ public class ScientistSmuggleUI : MonoBehaviour
 
         if (scientistCount == 0)
         {
-            // Bilim adamı yok - uyarı göster
             GameObject infoObj = Instantiate(scientistButtonPrefab, scientistListContainer);
             spawnedScientistButtons.Add(infoObj);
 
@@ -338,7 +326,6 @@ public class ScientistSmuggleUI : MonoBehaviour
             return;
         }
 
-        // Bilim adamları var - listele
         for (int i = 0; i < scientistCount; i++)
         {
             ScientistTraining scientist = SkillTreeManager.Instance.GetScientist(i);
@@ -348,8 +335,8 @@ public class ScientistSmuggleUI : MonoBehaviour
             spawnedScientistButtons.Add(buttonObj);
 
             var button = buttonObj.GetComponent<Button>();
-            
-            var scientistButton = buttonObj.GetComponent<ScientistSmuggleScientistButton>();
+
+            var scientistButton = buttonObj.GetComponent<IllegalScientistProviderScientistButton>();
             if (scientistButton != null)
             {
                 scientistButton.SetupScientist(scientist);
@@ -358,7 +345,7 @@ public class ScientistSmuggleUI : MonoBehaviour
             {
                 var allTexts = buttonObj.GetComponentsInChildren<TextMeshProUGUI>();
                 string status = scientist.isCompleted ? "Hazır" : "Eğitimde";
-                
+
                 if (allTexts.Length > 0) allTexts[0].text = scientist.data.displayName;
                 if (allTexts.Length > 1) allTexts[1].text = $"Gizlilik: {scientist.data.stealthLevel * 100:F0}%";
                 if (allTexts.Length > 2) allTexts[2].text = status;
@@ -387,7 +374,7 @@ public class ScientistSmuggleUI : MonoBehaviour
 
     // ==================== SEÇENEK BUTONLARI ====================
 
-    private void PopulateChoiceButtons(ScientistSmuggleEvent evt)
+    private void PopulateChoiceButtons(IllegalScientistProviderEvent evt)
     {
         ClearChoiceButtons();
 
@@ -396,22 +383,20 @@ public class ScientistSmuggleUI : MonoBehaviour
 
         for (int i = 0; i < evt.choices.Count; i++)
         {
-            ScientistSmuggleEventChoice choice = evt.choices[i];
+            IllegalScientistProviderEventChoice choice = evt.choices[i];
 
             GameObject buttonObj = Instantiate(choiceButtonPrefab, choiceButtonContainer);
             spawnedChoiceButtons.Add(buttonObj);
 
             var button = buttonObj.GetComponent<Button>();
-            
-            // ScientistSmuggleChoiceButton varsa onu kullan
-            var choiceButton = buttonObj.GetComponent<ScientistSmuggleChoiceButton>();
+
+            var choiceButton = buttonObj.GetComponent<IllegalScientistProviderChoiceButton>();
             if (choiceButton != null)
             {
                 choiceButton.SetupChoice(choice);
             }
             else
             {
-                // Fallback: ilk text'i bul ve doldur
                 var text = buttonObj.GetComponentInChildren<TextMeshProUGUI>();
                 if (text != null)
                 {
@@ -434,7 +419,7 @@ public class ScientistSmuggleUI : MonoBehaviour
         spawnedChoiceButtons.Clear();
     }
 
-    private string BuildModifierText(ScientistSmuggleEventChoice choice)
+    private string BuildModifierText(IllegalScientistProviderEventChoice choice)
     {
         List<string> mods = new List<string>();
 
@@ -463,9 +448,9 @@ public class ScientistSmuggleUI : MonoBehaviour
 
     private void UpdateRiskMeter()
     {
-        if (ScientistSmuggleManager.Instance == null) return;
+        if (IllegalScientistProviderManager.Instance == null) return;
 
-        float risk = ScientistSmuggleManager.Instance.GetEffectiveRisk();
+        float risk = IllegalScientistProviderManager.Instance.GetEffectiveRisk();
 
         if (riskMeterSlider != null)
         {
@@ -496,7 +481,7 @@ public class ScientistSmuggleUI : MonoBehaviour
 
     // ==================== EVENT HANDLER'LAR ====================
 
-    private void HandleOfferReceived(ScientistSmuggleEvent offer)
+    private void HandleOfferReceived(IllegalScientistProviderEvent offer)
     {
         ShowOfferPanel(offer);
     }
@@ -510,7 +495,7 @@ public class ScientistSmuggleUI : MonoBehaviour
             offerTimerText.text = $"{remainingTime:F1}s";
     }
 
-    private void HandleProcessStarted(ScientistSmuggleEvent offer, float duration)
+    private void HandleProcessStarted(IllegalScientistProviderEvent offer, float duration)
     {
         ShowProcessPanel(offer, duration);
     }
@@ -524,7 +509,7 @@ public class ScientistSmuggleUI : MonoBehaviour
             processProgressText.text = $"{progress * 100:F0}%";
     }
 
-    private void HandleEventTriggered(ScientistSmuggleEvent evt)
+    private void HandleEventTriggered(IllegalScientistProviderEvent evt)
     {
         ShowEventPanel(evt);
     }
@@ -538,18 +523,16 @@ public class ScientistSmuggleUI : MonoBehaviour
             eventTimerText.text = $"{remainingTime:F1}s";
     }
 
-    private void HandleEventResolved(ScientistSmuggleEventChoice choice)
+    private void HandleEventResolved(IllegalScientistProviderEventChoice choice)
     {
         HideEventPanel();
     }
 
     private void HandleMinigameFailed(string reason)
     {
-        // Başarısız sonuç için result göster
-        if (ScientistSmuggleManager.Instance != null)
+        if (IllegalScientistProviderManager.Instance != null)
         {
-            // Manuel result oluştur (manager'dan gelmiyor)
-            ScientistSmuggleResult failResult = new ScientistSmuggleResult();
+            IllegalScientistProviderResult failResult = new IllegalScientistProviderResult();
             failResult.success = false;
             failResult.offer = currentOffer;
             failResult.wealthChange = 0;
@@ -562,18 +545,16 @@ public class ScientistSmuggleUI : MonoBehaviour
         }
     }
 
-    private void HandleProcessCompleted(ScientistSmuggleResult result)
+    private void HandleProcessCompleted(IllegalScientistProviderResult result)
     {
         ShowResultPanel(result.success, result);
     }
 
     private void HandlePostProcessStarted()
     {
-        // Result panelini kapat (eğer açıksa)
         if (resultPanel != null)
             resultPanel.SetActive(false);
 
-        // Process panelini PostProcess modunda göster
         if (processPanel != null)
         {
             processPanel.SetActive(true);
@@ -606,32 +587,30 @@ public class ScientistSmuggleUI : MonoBehaviour
 
     private void OnScientistSelected(int scientistIndex)
     {
-        if (ScientistSmuggleManager.Instance == null) return;
-
-        ScientistSmuggleManager.Instance.AcceptOffer(scientistIndex);
+        if (IllegalScientistProviderManager.Instance == null) return;
+        IllegalScientistProviderManager.Instance.AcceptOffer(scientistIndex);
     }
 
     private void OnRejectOfferClicked()
     {
-        if (ScientistSmuggleManager.Instance == null) return;
-
-        ScientistSmuggleManager.Instance.RejectOffer();
+        if (IllegalScientistProviderManager.Instance == null) return;
+        IllegalScientistProviderManager.Instance.RejectOffer();
         HideAllPanels();
     }
 
     private void OnChoiceSelected(int choiceIndex)
     {
-        if (ScientistSmuggleManager.Instance == null) return;
+        if (IllegalScientistProviderManager.Instance == null) return;
 
-        var state = ScientistSmuggleManager.Instance.GetCurrentState();
+        var state = IllegalScientistProviderManager.Instance.GetCurrentState();
 
-        if (state == ScientistSmuggleState.EventPhase)
+        if (state == IllegalScientistProviderState.EventPhase)
         {
-            ScientistSmuggleManager.Instance.ResolveEvent(choiceIndex);
+            IllegalScientistProviderManager.Instance.ResolveEvent(choiceIndex);
         }
-        else if (state == ScientistSmuggleState.PostEventPhase)
+        else if (state == IllegalScientistProviderState.PostEventPhase)
         {
-            ScientistSmuggleManager.Instance.ResolvePostEvent(choiceIndex);
+            IllegalScientistProviderManager.Instance.ResolvePostEvent(choiceIndex);
         }
     }
 
@@ -639,8 +618,6 @@ public class ScientistSmuggleUI : MonoBehaviour
     {
         if (resultPanel != null)
             resultPanel.SetActive(false);
-
-        // PostProcess başlayacaksa o handle edecek, değilse zaten idle'a dönülmüş
     }
 
     private void OnKilledAcknowledgeClicked()
@@ -652,51 +629,41 @@ public class ScientistSmuggleUI : MonoBehaviour
     // ==================== PUBLIC METODLAR ====================
 
     /// <summary>
-    /// Minigame'i açar ve teklif tetikler. Dışarıdan çağrılır (buton, trigger zone, vs.)
-    /// Inspector'dan butona bu metodu bağla.
-    /// NOT: ScientistSmuggleManager.GenerateOffer() metodunu public yapmanız gerekiyor.
+    /// Minigame'i açar ve teklif tetikler. Inspector'dan butona bağla.
     /// </summary>
     public void OpenAndTriggerOffer()
     {
         gameObject.SetActive(true);
-        
-        if (ScientistSmuggleManager.Instance == null) return;
-        
-        // Zaten aktif bir operasyon varsa sadece UI'ı göster
-        if (ScientistSmuggleManager.Instance.IsActive()) return;
-        
-        // Manager'dan teklif tetikle
-        ScientistSmuggleManager.Instance.GenerateOffer();
+
+        if (IllegalScientistProviderManager.Instance == null) return;
+
+        if (IllegalScientistProviderManager.Instance.IsActive()) return;
+
+        IllegalScientistProviderManager.Instance.GenerateOffer();
     }
 
     /// <summary>
-    /// Minigame UI'ını açar. Dışarıdan çağrılır.
-    /// Eğer aktif bir operasyon varsa ilgili paneli gösterir.
+    /// Minigame UI'ını açar. Eğer aktif bir operasyon varsa ilgili paneli gösterir.
     /// </summary>
     public void OpenMinigame()
     {
         gameObject.SetActive(true);
 
-        // Mevcut duruma göre doğru paneli göster
-        if (ScientistSmuggleManager.Instance != null)
+        if (IllegalScientistProviderManager.Instance != null)
         {
-            var state = ScientistSmuggleManager.Instance.GetCurrentState();
+            var state = IllegalScientistProviderManager.Instance.GetCurrentState();
 
             switch (state)
             {
-                case ScientistSmuggleState.Idle:
+                case IllegalScientistProviderState.Idle:
                     HideAllPanels();
                     break;
-                case ScientistSmuggleState.OfferPending:
-                    // Offer zaten event ile gelecek
-                    break;
-                case ScientistSmuggleState.ActiveProcess:
-                case ScientistSmuggleState.EventPhase:
-                    // Process paneli zaten gösteriliyor olmalı
-                    break;
-                case ScientistSmuggleState.PostProcess:
-                case ScientistSmuggleState.PostEventPhase:
-                    // PostProcess paneli zaten gösteriliyor olmalı
+                case IllegalScientistProviderState.OfferPending:
+                case IllegalScientistProviderState.ActiveProcess:
+                case IllegalScientistProviderState.EventPhase:
+                case IllegalScientistProviderState.PostProcess:
+                case IllegalScientistProviderState.PostEventPhase:
+                    // İlgili panel zaten manager event'leriyle gösterilmişti
                     break;
             }
         }
@@ -715,18 +682,7 @@ public class ScientistSmuggleUI : MonoBehaviour
     /// </summary>
     public bool IsMinigameActive()
     {
-        if (ScientistSmuggleManager.Instance == null) return false;
-        return ScientistSmuggleManager.Instance.IsActive();
-    }
-
-    // ==================== UTILITY ====================
-
-    private string FormatTime(float seconds)
-    {
-        if (seconds <= 0) return "0:00";
-
-        int mins = Mathf.FloorToInt(seconds / 60f);
-        int secs = Mathf.FloorToInt(seconds % 60f);
-        return $"{mins}:{secs:D2}";
+        if (IllegalScientistProviderManager.Instance == null) return false;
+        return IllegalScientistProviderManager.Instance.IsActive();
     }
 }

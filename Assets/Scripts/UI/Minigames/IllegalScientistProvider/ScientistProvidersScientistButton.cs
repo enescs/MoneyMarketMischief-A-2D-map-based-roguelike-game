@@ -4,9 +4,9 @@ using TMPro;
 
 /// <summary>
 /// Bilim adamı seçim butonları için yardımcı component.
-/// Prefab'a eklendiğinde bilim adamı bilgilerini düzgün gösterir.
+/// Bilim adamı bilgilerini düzgün gösterir.
 /// </summary>
-public class ScientistSmuggleScientistButton : MonoBehaviour
+public class IllegalScientistProviderScientistButton : MonoBehaviour
 {
     [Header("UI Referansları")]
     public TextMeshProUGUI nameText;
@@ -39,11 +39,9 @@ public class ScientistSmuggleScientistButton : MonoBehaviour
     {
         if (scientist == null || scientist.data == null) return;
 
-        // İsim
         if (nameText != null)
             nameText.text = scientist.data.displayName;
 
-        // Gizlilik seviyesi
         if (statsText != null)
         {
             float stealth = scientist.data.stealthLevel;
@@ -52,7 +50,6 @@ public class ScientistSmuggleScientistButton : MonoBehaviour
             statsText.text = $"<color={colorHex}>Gizlilik: {stealthLabel} ({stealth * 100:F0}%)</color>";
         }
 
-        // Durum
         if (scientist.isCompleted)
         {
             if (statusText != null)
@@ -94,7 +91,6 @@ public class ScientistSmuggleScientistButton : MonoBehaviour
                 button.interactable = false;
         }
 
-        // Avatar gizle (ScientistData'da avatar yok)
         if (avatarImage != null)
             avatarImage.gameObject.SetActive(false);
     }
@@ -104,23 +100,16 @@ public class ScientistSmuggleScientistButton : MonoBehaviour
     /// </summary>
     public void SetupEmpty(string message)
     {
-        if (nameText != null)
-            nameText.text = message;
-
-        if (statsText != null)
-            statsText.text = "";
-
-        if (statusText != null)
-            statusText.text = "";
+        if (nameText != null) nameText.text = message;
+        if (statsText != null) statsText.text = "";
+        if (statusText != null) statusText.text = "";
 
         if (trainingProgressSlider != null)
             trainingProgressSlider.gameObject.SetActive(false);
 
         if (readyIndicator != null) readyIndicator.SetActive(false);
         if (trainingIndicator != null) trainingIndicator.SetActive(false);
-
-        if (avatarImage != null)
-            avatarImage.gameObject.SetActive(false);
+        if (avatarImage != null) avatarImage.gameObject.SetActive(false);
 
         if (backgroundImage != null)
             backgroundImage.color = disabledColor;
