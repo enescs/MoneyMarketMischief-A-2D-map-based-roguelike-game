@@ -100,7 +100,7 @@ MonoBehaviour:
   m_Transition: 1
   m_Colors:
     m_NormalColor: {r: 1, g: 1, b: 1, a: 1}
-    m_HighlightedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
+    m_HighlightedColor: {r: 0.6320754, g: 0.9652529, b: 1, a: 1}
     m_PressedColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 1}
     m_SelectedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
     m_DisabledColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 0.5019608}
@@ -134,21 +134,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2ea5b814b5192a1498fdeda76874b7dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WarForOilCountryCardUI
-  countryNameText: {fileID: 0}
-  descriptionText: {fileID: 0}
-  resourcesText: {fileID: 0}
-  difficultyText: {fileID: 0}
-  resourcesBar: {fileID: 0}
-  difficultyBar: {fileID: 0}
-  selectButton: {fileID: 0}
-  selectButtonText: {fileID: 0}
-  conqueredOverlay: {fileID: 0}
-  cardBackground: {fileID: 0}
-  normalColor: {r: 0.2, g: 0.2, b: 0.25, a: 1}
-  conqueredColor: {r: 0.15, g: 0.15, b: 0.15, a: 1}
-  easyColor: {r: 0.2, g: 0.7, b: 0.2, a: 1}
-  mediumColor: {r: 0.8, g: 0.7, b: 0.2, a: 1}
-  hardColor: {r: 0.8, g: 0.2, b: 0.2, a: 1}
 --- !u!1 &7717219561785583420
 GameObject:
   m_ObjectHideFlags: 0
