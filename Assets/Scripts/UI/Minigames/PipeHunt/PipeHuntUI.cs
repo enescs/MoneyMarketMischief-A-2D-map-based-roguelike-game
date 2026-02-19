@@ -416,7 +416,7 @@ public class PipeHuntUI : MonoBehaviour
 
     private void OnResultCloseClicked()
     {
-        ShowToolSelection();
+        CloseMinigame();
     }
 
     // ==================== PUBLIC METODLAR ====================
