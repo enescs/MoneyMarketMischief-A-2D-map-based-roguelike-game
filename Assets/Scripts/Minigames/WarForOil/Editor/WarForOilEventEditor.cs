@@ -199,6 +199,9 @@ public class WarForOilEventEditor : Editor
             EditorGUILayout.PropertyField(
                 choice.FindPropertyRelative("blocksEvents"),
                 new GUIContent("Event Engelle"));
+            EditorGUILayout.PropertyField(
+                choice.FindPropertyRelative("freezesFeed"),
+                new GUIContent("Feed Dondur"));
 
             EditorGUI.indentLevel--;
         }
@@ -285,6 +288,7 @@ public class WarForOilEventEditor : Editor
         choice.FindPropertyRelative("dealDelay").floatValue = 0f;
         choice.FindPropertyRelative("dealRewardRatio").floatValue = 0f;
         choice.FindPropertyRelative("blocksEvents").boolValue = false;
+        choice.FindPropertyRelative("freezesFeed").boolValue = false;
         choice.FindPropertyRelative("continuesChain").boolValue = false;
         choice.FindPropertyRelative("isChainRefusal").boolValue = false;
         choice.FindPropertyRelative("triggersCeasefire").boolValue = false;

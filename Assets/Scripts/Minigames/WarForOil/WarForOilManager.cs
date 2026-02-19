@@ -243,6 +243,10 @@ public class WarForOilManager : MonoBehaviour
         accumulatedPoliticalInfluenceModifier += choice.politicalInfluenceModifier;
         accumulatedCostModifier += choice.costModifier;
 
+        //feed dondurma
+        if (choice.freezesFeed && SocialMediaManager.Instance != null)
+            SocialMediaManager.Instance.TryFreezeFeed();
+
         //supportStat güncelle
         supportStat = Mathf.Clamp(supportStat + choice.supportModifier, 0f, 100f);
 

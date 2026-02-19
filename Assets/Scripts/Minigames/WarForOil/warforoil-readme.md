@@ -181,6 +181,7 @@ Event icindeki tek bir secenek. Serializable sinif.
 | `dealDelay` | Anlasma kac saniye sonra savasi bitirir |
 | `dealRewardRatio` | Normal kazanimin bu orani garanti verilir (0.8 = %80) |
 | `blocksEvents` | Secilirse savas sonuna kadar yeni event gelmez |
+| `freezesFeed` | Secilince sosyal medya feed'ini dondurur (SocialMediaManager.TryFreezeFeed) |
 | **Zincir Flagleri** (foldout) | |
 | `continuesChain` | Zinciri devam ettirir (fonlama) |
 | `isChainRefusal` | Zincirde reddetme sayacini artirir |
