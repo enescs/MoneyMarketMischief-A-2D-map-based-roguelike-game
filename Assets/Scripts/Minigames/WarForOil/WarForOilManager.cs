@@ -62,6 +62,8 @@ public class WarForOilManager : MonoBehaviour
     private float protestDriftTimer; //drift tick zamanlayıcı
 
     //vandalizm sistemi
+    private bool vandalismPending; //trigger event bekliyor
+    private VandalismLevel pendingVandalismLevel; //trigger sonrası atanacak seviye
     private VandalismLevel currentVandalismLevel = VandalismLevel.None;
     private float vandalismDamageTimer;
 
@@ -1045,6 +1047,32 @@ public class WarForOilManager : MonoBehaviour
     }
 
     /// <summary>
+    /// Vandalizmi aktif eder ve başlangıç event'ini gösterir.
+    /// </summary>
+    private void ActivateVandalism()
+    {
+        //bekleyen seviyeyi uygula
+        currentVandalismLevel = pendingVandalismLevel;
+        vandalismDamageTimer = 0f;
+
+        OnVandalismLevelChanged?.Invoke(currentVandalismLevel);
+
+        //başlangıç event'ini göster
+        if (!EventCoordinator.CanShowEvent()) return;
+
+        EventCoordinator.MarkEventShown();
+
+        currentEvent = database.vandalismTriggerEvent;
+        currentState = WarForOilState.EventPhase;
+        eventDecisionTimer = currentEvent.decisionTime;
+
+        if (GameManager.Instance != null)
+            GameManager.Instance.PauseGame();
+
+        OnWarEventTriggered?.Invoke(currentEvent);
+    }
+
+    /// <summary>
     /// Toplum tepkisi eşiği aşıldı — savaş otomatik ateşkese bağlanır.
     /// </summary>
     private void ProtestForceCeasefire()
@@ -1135,20 +1163,45 @@ public class WarForOilManager : MonoBehaviour
 
         if (choice.vandalismChangeType == VandalismChangeType.Direct)
         {
+            //vandalizm hiç başlamamışsa ve hedef None veya Ended ise bir şey yapma
+            if (currentVandalismLevel == VandalismLevel.None
+                && (choice.vandalismTargetLevel == VandalismLevel.None || choice.vandalismTargetLevel == VandalismLevel.Ended))
+                return;
+
             newLevel = choice.vandalismTargetLevel;
         }
         else
         {
-            //göreceli değişim: mevcut seviyeyi sayısal olarak kaydır
-            int currentNumeric = VandalismLevelToInt(currentVandalismLevel);
-            int result = currentNumeric + choice.vandalismLevelDelta;
-
-            if (result < 1)
-                newLevel = VandalismLevel.Ended; //alt sınırın altı → bitti
-            else if (result > 4)
-                newLevel = VandalismLevel.Severe; //üst sınır → severe'da kal
+            //vandalizm hiç başlamamışsa sadece yükseltici delta'ya izin ver
+            if (currentVandalismLevel == VandalismLevel.None)
+            {
+                if (choice.vandalismLevelDelta <= 0) return;
+                //None'dan başlatılıyorsa delta direkt seviye olur
+                newLevel = IntToVandalismLevel(Mathf.Clamp(choice.vandalismLevelDelta, 1, 4));
+            }
             else
-                newLevel = IntToVandalismLevel(result);
+            {
+                //göreceli değişim: mevcut seviyeyi sayısal olarak kaydır
+                int currentNumeric = VandalismLevelToInt(currentVandalismLevel);
+                int result = currentNumeric + choice.vandalismLevelDelta;
+
+                if (result < 1)
+                    newLevel = VandalismLevel.Ended; //alt sınırın altı → bitti
+                else if (result > 4)
+                    newLevel = VandalismLevel.Severe; //üst sınır → severe'da kal
+                else
+                    newLevel = IntToVandalismLevel(result);
+            }
+        }
+
+        //vandalizm henüz başlamamışsa ve aktif seviyeye geçecekse → trigger event beklet
+        if (currentVandalismLevel == VandalismLevel.None
+            && newLevel != VandalismLevel.None && newLevel != VandalismLevel.Ended
+            && database.vandalismTriggerEvent != null)
+        {
+            vandalismPending = true;
+            pendingVandalismLevel = newLevel;
+            return;
         }
 
         if (newLevel != currentVandalismLevel)
@@ -1249,6 +1302,8 @@ public class WarForOilManager : MonoBehaviour
         protestStat = 0f;
         protestDriftRate = 0f;
         protestDriftTimer = 0f;
+        vandalismPending = false;
+        pendingVandalismLevel = VandalismLevel.None;
         currentVandalismLevel = VandalismLevel.None;
         vandalismDamageTimer = 0f;
 
@@ -1269,6 +1324,14 @@ public class WarForOilManager : MonoBehaviour
         {
             protestPending = false;
             ActivateProtest();
+            return;
+        }
+
+        //vandalizm trigger: bekleyen vandalizm event'ini göster
+        if (vandalismPending)
+        {
+            vandalismPending = false;
+            ActivateVandalism();
             return;
         }
 

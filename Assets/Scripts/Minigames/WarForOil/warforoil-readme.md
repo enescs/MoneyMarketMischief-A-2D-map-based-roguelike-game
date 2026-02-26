@@ -108,6 +108,7 @@ Tum minigame ayarlarinin tek noktadan yonetildigi ScriptableObject.
 | `protestTriggerEvent` | — | Toplum tepkisi baslangic event'i |
 | `protestEvents` | — | Toplum tepkisi event havuzu |
 | **Vandalizm Ayarlari** | | |
+| `vandalismTriggerEvent` | — | Vandalizm baslangic event'i (trigger) |
 | `vandalismDamageInterval` | 5 sn | Vandalizm hasar tick araligi |
 | `vandalismLightDamage` | 5 | Light seviyede tick basina wealth kaybi |
 | `vandalismModerateDamage` | 15 | Moderate seviyede tick basina wealth kaybi |
@@ -416,6 +417,18 @@ Toplum tepkisi eventlerindeki choice'lar:
 
 Toplum tepkisi eventleri sirasinda vandallar oyuncunun pasif gelir urunlerine saldirabilir. Vandalizm surekli bir stat degil, kesikli seviye (enum) olarak yonetilir.
 
+### Vandalizm Tetikleme (Trigger)
+
+Vandalizm protest gibi trigger event mekanizmasi kullanir:
+1. Bir protest event choice'i vandalizmi baslatacaksa (None → aktif seviye), direkt baslamaz
+2. `vandalismPending = true` yapilir, hedef seviye saklanir
+3. Bir sonraki 15 saniyelik event check'te `vandalismTriggerEvent` gosterilir
+4. Trigger event gosterildiginde vandalizm aktif olur ve periyodik hasar baslar
+
+Database'de `vandalismTriggerEvent` slotuna atanan event "Vandallar sokaklara cikti" gibi bir baslangic event'i olmali.
+
+**Not**: Vandalizm zaten aktifse (None degilse) choice'lar direkt seviye degistirir, trigger tekrar gosterilmez.
+
 ### VandalismLevel Enum
 
 | Seviye | Numerik | Aciklama |
@@ -440,6 +453,11 @@ Iki mod vardir (choice basina biri secilir):
 - Sonuc < 1 → Ended (vandalizm bastirildi)
 - Sonuc > 4 → Severe'de kalir (tavan)
 
+**Koruma kurallari**:
+- Vandalizm None iken Direct None/Ended → hicbir sey yapmaz
+- Vandalizm None iken Relative negatif/sifir → hicbir sey yapmaz
+- Vandalizm None iken aktif seviyeye gecis → trigger event bekletilir
+
 ### Periyodik Hasar
 
 Aktif vandalizm seviyelerinde (Light-Severe) her `vandalismDamageInterval` saniyede bir wealth kaybi uygulanir:
@@ -462,7 +480,7 @@ Choice'un "Vandalizm Etkisi" foldout'u acilir:
 
 ### Savas Basi / Sonu
 
-- Savas basladiginda `currentVandalismLevel = None`, hasar timer sifirlanir
+- Savas basladiginda `currentVandalismLevel = None`, `vandalismPending = false`, hasar timer sifirlanir
 - Savas sonucunda `finalVandalismLevel` kaydedilir (UI gosterebilir)
 
 ### Eventler

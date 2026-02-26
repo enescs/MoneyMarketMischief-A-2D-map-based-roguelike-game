@@ -13,14 +13,55 @@ MonoBehaviour:
   m_Name: ProtestEvent02
   m_EditorClassIdentifier: Assembly-CSharp::WarForOilEvent
   id: 
-  displayName: 
-  description: 
+  displayName: Attacks on Your Revenue Network
+  description: The protests have turned into vandalism, and demonstrators are now
+    targeting businesses that directly generate income for you. Your warehouses,
+    commercial nodes, and covert financial channels are taking damage. These attacks
+    not only cause financial loss but also weaken the perception of your control.
+    If left unchecked, your revenue flow could suffer severely.
   devNote: 
   minWarTime: 0
   decisionTime: 10
   isRepeatable: 0
   maxRepeatCount: 1
-  choices: []
+  choices:
+  - displayName: 
+    description: 
+    supportModifier: 0
+    suspicionModifier: 0
+    reputationModifier: 0
+    politicalInfluenceModifier: 0
+    costModifier: 0
+    cornerGrabModifier: 0
+    protestModifier: 0
+    hasProtestChance: 0
+    protestDecreaseChance: 0
+    protestDecreaseAmount: 0
+    protestIncreaseAmount: 0
+    freezesFeed: 0
+    slowsFeed: 0
+    hasFeedOverride: 0
+    feedOverrideRatio: 0
+    feedOverrideDuration: 0
+    endsWar: 0
+    warEndDelay: 0
+    reducesReward: 0
+    baseRewardReduction: 0
+    endsWarWithDeal: 0
+    dealDelay: 0
+    dealRewardRatio: 0
+    blocksEvents: 0
+    continuesChain: 0
+    isChainRefusal: 0
+    triggersCeasefire: 0
+    acceptsRivalDeal: 0
+    rejectsRivalDeal: 0
+    affectsVandalism: 1
+    vandalismChangeType: 0
+    vandalismTargetLevel: 0
+    vandalismLevelDelta: 0
+    requiredSkills: []
+    statConditions: []
   defaultChoiceIndex: -1
   chainRole: 0
   nextChainEvent: {fileID: 0}

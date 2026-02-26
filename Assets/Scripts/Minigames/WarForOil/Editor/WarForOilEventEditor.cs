@@ -12,6 +12,7 @@ public class WarForOilEventEditor : Editor
     private Dictionary<int, bool> chainChoiceFoldouts = new Dictionary<int, bool>();
     private Dictionary<int, bool> rivalFoldouts = new Dictionary<int, bool>();
     private Dictionary<int, bool> vandalismFoldouts = new Dictionary<int, bool>();
+    private Dictionary<int, bool> feedFoldouts = new Dictionary<int, bool>();
     private bool chainFoldout;
 
     public override void OnInspectorGUI()
@@ -237,6 +238,21 @@ public class WarForOilEventEditor : Editor
             EditorGUILayout.PropertyField(
                 choice.FindPropertyRelative("blocksEvents"),
                 new GUIContent("Event Engelle"));
+            EditorGUI.indentLevel--;
+        }
+
+        EditorGUILayout.Space(2);
+
+        //feed sonuçları — foldout
+        if (!feedFoldouts.ContainsKey(index))
+            feedFoldouts[index] = false;
+        feedFoldouts[index] = EditorGUILayout.Foldout(
+            feedFoldouts[index], "Feed Sonuçları", true);
+
+        if (feedFoldouts[index])
+        {
+            EditorGUI.indentLevel++;
+
             EditorGUILayout.PropertyField(
                 choice.FindPropertyRelative("freezesFeed"),
                 new GUIContent("Feed Dondur"));

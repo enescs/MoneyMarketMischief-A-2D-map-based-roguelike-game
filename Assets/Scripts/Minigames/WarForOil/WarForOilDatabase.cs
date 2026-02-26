@@ -61,6 +61,7 @@ public class WarForOilDatabase : ScriptableObject
     public List<WarForOilEvent> protestEvents; //toplum tepkisi event havuzu
 
     [Header("Vandalizm Ayarları")]
+    public WarForOilEvent vandalismTriggerEvent; //vandalizm başlangıç event'i
     public float vandalismDamageInterval = 5f; //hasar tick aralığı (saniye)
     public float vandalismLightDamage = 5f; //hafif seviyede tick başına wealth kaybı
     public float vandalismModerateDamage = 15f; //orta seviyede tick başına wealth kaybı
