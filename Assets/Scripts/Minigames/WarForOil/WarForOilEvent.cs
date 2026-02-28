@@ -11,6 +11,9 @@ public class WarForOilEvent : ScriptableObject
     [Header("Geliştirici Notu")]
     [TextArea(3, 10)] public string devNote; //sadece Inspector'da görünür, oyuna etkisi yok
 
+    [Header("Skill Açıklaması")]
+    [TextArea(3, 10)] public string skillNote; //hangi skill'lerle bağlantılı olduğunun dev notu, oyuna etkisi yok
+
     public float minWarTime = 0f; //bu event savaş başladıktan en az kaç saniye sonra gelebilir
     public float decisionTime = 10f; //karar süresi (saniye)
     public bool isRepeatable; //aynı savaşta tekrar tetiklenebilir mi
@@ -84,6 +87,12 @@ public class WarForOilEventChoice
     public float dealDelay; //anlaşma kaç saniye sonra savaşı bitirir (0 = anında)
     [Range(0f, 1f)] public float dealRewardRatio; //normal kazanımın bu oranı garanti verilir (0.8 = %80)
     public bool blocksEvents; //seçilirse savaş sonuna kadar yeni event gelmez
+
+    //olasılıklı savaş bitirme (Inspector tarafından "Diğer Sonuçlar" foldout'unda çizilir)
+    public bool hasProbabilisticWarEnd; //olasılık bazlı 3 sonuç: savaş biter / event yok olur / tekrar tetiklenir
+    [Range(0f, 1f)] public float probWarEndChance; //savaş bitme olasılığı (support=50 için base değer)
+    [Range(0f, 1f)] public float probDismissChance; //event yok olma olasılığı (support=50 için base değer)
+    public float probWarEndDelay; //savaş biterse gecikme süresi (saniye)
 
     //zincir seçenek flagleri (Editor tarafından foldout içinde çizilir)
     public bool continuesChain; //zinciri devam ettirir (fonlama)

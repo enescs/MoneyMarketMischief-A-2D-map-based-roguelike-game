@@ -29,10 +29,20 @@ MonoBehaviour:
       the chance of victory.
     supportModifier: 4.3
     suspicionModifier: 0
+    reputationModifier: 0
     politicalInfluenceModifier: 0
     costModifier: 0
     cornerGrabModifier: 0
     protestModifier: 0
+    hasProtestChance: 0
+    protestDecreaseChance: 0
+    protestDecreaseAmount: 0
+    protestIncreaseAmount: 0
+    freezesFeed: 0
+    slowsFeed: 0
+    hasFeedOverride: 0
+    feedOverrideRatio: 0
+    feedOverrideDuration: 0
     endsWar: 0
     warEndDelay: 0
     reducesReward: 0
@@ -46,6 +56,14 @@ MonoBehaviour:
     triggersCeasefire: 0
     acceptsRivalDeal: 0
     rejectsRivalDeal: 0
+    affectsVandalism: 0
+    vandalismChangeType: 0
+    vandalismTargetLevel: 0
+    vandalismLevelDelta: 0
+    affectsMediaPursuit: 0
+    mediaPursuitChangeType: 0
+    mediaPursuitTargetLevel: 0
+    mediaPursuitLevelDelta: 0
     requiredSkills: []
     statConditions: []
   - displayName: Withhold Support
@@ -53,10 +71,20 @@ MonoBehaviour:
       the chance of victory and increase the risk of defeat.
     supportModifier: -2
     suspicionModifier: 0
+    reputationModifier: 0
     politicalInfluenceModifier: 0
     costModifier: 0
     cornerGrabModifier: 0
     protestModifier: 0
+    hasProtestChance: 0
+    protestDecreaseChance: 0
+    protestDecreaseAmount: 0
+    protestIncreaseAmount: 0
+    freezesFeed: 0
+    slowsFeed: 0
+    hasFeedOverride: 0
+    feedOverrideRatio: 0
+    feedOverrideDuration: 0
     endsWar: 0
     warEndDelay: 0
     reducesReward: 0
@@ -70,9 +98,21 @@ MonoBehaviour:
     triggersCeasefire: 0
     acceptsRivalDeal: 0
     rejectsRivalDeal: 0
+    affectsVandalism: 0
+    vandalismChangeType: 0
+    vandalismTargetLevel: 0
+    vandalismLevelDelta: 0
+    affectsMediaPursuit: 0
+    mediaPursuitChangeType: 0
+    mediaPursuitTargetLevel: 0
+    mediaPursuitLevelDelta: 0
     requiredSkills: []
     statConditions: []
   defaultChoiceIndex: 1
+  isVandalismEvent: 0
+  vandalismLevelOnTrigger: 0
+  isMediaPursuitEvent: 0
+  mediaPursuitLevelOnTrigger: 0
   chainRole: 0
   nextChainEvent: {fileID: 0}
   chainInterval: 5

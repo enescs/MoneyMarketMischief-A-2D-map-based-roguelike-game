@@ -11,6 +11,7 @@ public class WarForOilEventEditor : Editor
     private Dictionary<int, bool> prerequisiteFoldouts = new Dictionary<int, bool>();
     private Dictionary<int, bool> chainChoiceFoldouts = new Dictionary<int, bool>();
     private Dictionary<int, bool> rivalFoldouts = new Dictionary<int, bool>();
+    private Dictionary<int, bool> protestFoldouts = new Dictionary<int, bool>();
     private Dictionary<int, bool> vandalismFoldouts = new Dictionary<int, bool>();
     private Dictionary<int, bool> mediaPursuitFoldouts = new Dictionary<int, bool>();
     private Dictionary<int, bool> feedFoldouts = new Dictionary<int, bool>();
@@ -23,9 +24,16 @@ public class WarForOilEventEditor : Editor
         //choices, maxRepeatCount, defaultChoiceIndex ve zincir alanları hariç tüm alanları çiz
         DrawPropertiesExcluding(serializedObject,
             "choices", "maxRepeatCount", "defaultChoiceIndex",
+            "skillNote",
             "isVandalismEvent", "vandalismLevelOnTrigger",
             "isMediaPursuitEvent", "mediaPursuitLevelOnTrigger",
             "chainRole", "nextChainEvent", "chainInterval", "skillsToLock", "chainFine", "refusalThresholds");
+
+        //skill notu — devNote'un altına, custom label ile
+        EditorGUILayout.LabelField("Skill Açıklaması", EditorStyles.boldLabel);
+        EditorGUILayout.PropertyField(
+            serializedObject.FindProperty("skillNote"),
+            new GUIContent("Skill Note (oyuna etkisi yok, geliştiriciler için)"));
 
         //isRepeatable açıksa maxRepeatCount'u göster
         SerializedProperty isRepeatable = serializedObject.FindProperty("isRepeatable");
@@ -184,7 +192,7 @@ public class WarForOilEventEditor : Editor
         {
             EditorGUI.indentLevel++;
             EditorGUILayout.PropertyField(choice.FindPropertyRelative("supportModifier"),
-                new GUIContent("Destek"));
+                new GUIContent("War Support"));
             EditorGUILayout.PropertyField(choice.FindPropertyRelative("suspicionModifier"),
                 new GUIContent("Şüphe"));
             EditorGUILayout.PropertyField(choice.FindPropertyRelative("reputationModifier"),
@@ -195,6 +203,21 @@ public class WarForOilEventEditor : Editor
                 new GUIContent("Maliyet"));
             EditorGUILayout.PropertyField(choice.FindPropertyRelative("cornerGrabModifier"),
                 new GUIContent("Köşe Kapma"));
+
+            EditorGUI.indentLevel--;
+        }
+
+        EditorGUILayout.Space(2);
+
+        //protest etkisi — foldout
+        if (!protestFoldouts.ContainsKey(index))
+            protestFoldouts[index] = false;
+        protestFoldouts[index] = EditorGUILayout.Foldout(
+            protestFoldouts[index], "Protest Etkisi", true);
+
+        if (protestFoldouts[index])
+        {
+            EditorGUI.indentLevel++;
             EditorGUILayout.PropertyField(choice.FindPropertyRelative("protestModifier"),
                 new GUIContent("Toplum Tepkisi"));
 
@@ -269,6 +292,53 @@ public class WarForOilEventEditor : Editor
             EditorGUILayout.PropertyField(
                 choice.FindPropertyRelative("blocksEvents"),
                 new GUIContent("Event Engelle"));
+
+            SerializedProperty hasProbWarEnd = choice.FindPropertyRelative("hasProbabilisticWarEnd");
+            EditorGUILayout.PropertyField(hasProbWarEnd, new GUIContent("Olasılıklı Savaşı Bitir"));
+            if (hasProbWarEnd.boolValue)
+            {
+                EditorGUI.indentLevel++;
+
+                SerializedProperty probWarEnd = choice.FindPropertyRelative("probWarEndChance");
+                SerializedProperty probDismiss = choice.FindPropertyRelative("probDismissChance");
+
+                //bitme şansı — başlık tıklanınca slider açılır
+                probWarEnd.isExpanded = EditorGUILayout.Foldout(probWarEnd.isExpanded, "Bitme Şansı", true);
+                if (probWarEnd.isExpanded)
+                {
+                    EditorGUI.indentLevel++;
+                    EditorGUILayout.Slider(probWarEnd, 0f, 1f, GUIContent.none);
+                    EditorGUI.indentLevel--;
+                }
+
+                //yok olma şansı — başlık tıklanınca slider açılır
+                probDismiss.isExpanded = EditorGUILayout.Foldout(probDismiss.isExpanded, "Yok Olma Şansı", true);
+                if (probDismiss.isExpanded)
+                {
+                    EditorGUI.indentLevel++;
+                    EditorGUILayout.Slider(probDismiss, 0f, 1f, GUIContent.none);
+                    EditorGUI.indentLevel--;
+                }
+
+                float retrigger = 1f - probWarEnd.floatValue - probDismiss.floatValue;
+                if (retrigger < 0f) retrigger = 0f;
+                EditorGUILayout.HelpBox(
+                    $"Tekrar: %{retrigger * 100f:F0} | Base değerler (support=50)",
+                    MessageType.Info);
+
+                //gecikme — başlık tıklanınca alan açılır
+                SerializedProperty probDelay = choice.FindPropertyRelative("probWarEndDelay");
+                probDelay.isExpanded = EditorGUILayout.Foldout(probDelay.isExpanded, "Gecikme (sn)", true);
+                if (probDelay.isExpanded)
+                {
+                    EditorGUI.indentLevel++;
+                    EditorGUILayout.PropertyField(probDelay, GUIContent.none);
+                    EditorGUI.indentLevel--;
+                }
+
+                EditorGUI.indentLevel--;
+            }
+
             EditorGUI.indentLevel--;
         }
 
@@ -472,6 +542,10 @@ public class WarForOilEventEditor : Editor
         choice.FindPropertyRelative("dealDelay").floatValue = 0f;
         choice.FindPropertyRelative("dealRewardRatio").floatValue = 0f;
         choice.FindPropertyRelative("blocksEvents").boolValue = false;
+        choice.FindPropertyRelative("hasProbabilisticWarEnd").boolValue = false;
+        choice.FindPropertyRelative("probWarEndChance").floatValue = 0f;
+        choice.FindPropertyRelative("probDismissChance").floatValue = 0f;
+        choice.FindPropertyRelative("probWarEndDelay").floatValue = 0f;
         choice.FindPropertyRelative("freezesFeed").boolValue = false;
         choice.FindPropertyRelative("slowsFeed").boolValue = false;
         choice.FindPropertyRelative("hasFeedOverride").boolValue = false;

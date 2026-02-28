@@ -75,6 +75,10 @@ public class WarForOilManager : MonoBehaviour
     private MediaPursuitLevel currentMediaPursuitLevel = MediaPursuitLevel.None;
     private float mediaPursuitTickTimer;
 
+    //olasılıklı savaş bitirme sistemi
+    private WarForOilEvent forcedNextEvent; //tekrar tetiklenecek event (sonraki cycle'da)
+    private HashSet<string> dismissedEventIds = new HashSet<string>(); //bu savaşta kalıcı yok sayılan event id'leri
+
     //sonuç ekranı beklerken saklanan sonuç
     private WarForOilResult pendingResult;
 
@@ -413,6 +417,14 @@ public class WarForOilManager : MonoBehaviour
         //ödül düşürme
         if (choice.reducesReward && choice.baseRewardReduction > 0f)
             rewardMultiplier *= (1f - choice.baseRewardReduction);
+
+        //olasılıklı savaş bitirme — zar atılır, 3 sonuçtan biri uygulanır
+        if (choice.hasProbabilisticWarEnd)
+        {
+            ResolveProbabilisticWarEnd(choice, resolvedEvent);
+            currentState = WarForOilState.WarProcess;
+            return;
+        }
 
         //event engelleme (blocksEvents, endsWar veya anlaşma seçildiyse artık event gelmez)
         if (choice.blocksEvents || choice.endsWar || choice.endsWarWithDeal)
@@ -1522,6 +1534,59 @@ public class WarForOilManager : MonoBehaviour
         return currentMediaPursuitLevel;
     }
 
+    // ==================== OLASILIKLI SAVAŞ BİTİRME ====================
+
+    /// <summary>
+    /// Olasılıklı savaş bitirme mekanizması. Support bazlı ölçeklenen 3 sonuçtan birini uygular:
+    /// 1) Savaş biter (warTimer ilerletilir)
+    /// 2) Event kalıcı yok sayılır (bu savaşta bir daha gelmez)
+    /// 3) Event sonraki cycle'da tekrar tetiklenir
+    /// </summary>
+    private void ResolveProbabilisticWarEnd(WarForOilEventChoice choice, WarForOilEvent evt)
+    {
+        //support'a göre olasılık ölçekleme
+        //support=50 → base değerler, >50 → dismiss artar, <50 → warEnd artar
+        float supportDelta = (supportStat - 50f) / 50f; // -1..+1
+
+        float adjWarEnd = choice.probWarEndChance * Mathf.Clamp01(1f - supportDelta);
+        float adjDismiss = choice.probDismissChance * Mathf.Clamp01(1f + supportDelta);
+        float adjRetrigger = 1f - choice.probWarEndChance - choice.probDismissChance; //base retrigger sabit
+        if (adjRetrigger < 0f) adjRetrigger = 0f;
+
+        //normalize
+        float total = adjWarEnd + adjDismiss + adjRetrigger;
+        if (total <= 0f)
+        {
+            //güvenlik: tüm olasılıklar 0 ise tekrar tetikle
+            forcedNextEvent = evt;
+            return;
+        }
+
+        float finalWarEnd = adjWarEnd / total;
+        float finalDismiss = adjDismiss / total;
+
+        //zar at
+        float roll = UnityEngine.Random.value;
+
+        if (roll < finalWarEnd)
+        {
+            //sonuç: savaş biter
+            eventsBlocked = true;
+            float targetTimer = database.warDuration - choice.probWarEndDelay;
+            warTimer = Mathf.Max(warTimer, targetTimer);
+        }
+        else if (roll < finalWarEnd + finalDismiss)
+        {
+            //sonuç: event kalıcı yok sayılır, savaş devam eder
+            dismissedEventIds.Add(evt.id);
+        }
+        else
+        {
+            //sonuç: event sonraki event check'te tekrar tetiklenir
+            forcedNextEvent = evt;
+        }
+    }
+
     // ==================== İÇ MANTIK ====================
 
     /// <summary>
@@ -1569,6 +1634,8 @@ public class WarForOilManager : MonoBehaviour
         pendingMediaPursuitLevel = MediaPursuitLevel.None;
         currentMediaPursuitLevel = MediaPursuitLevel.None;
         mediaPursuitTickTimer = 0f;
+        forcedNextEvent = null;
+        dismissedEventIds.Clear();
 
         OnWarStarted?.Invoke(selectedCountry, database.warDuration);
     }
@@ -1660,6 +1727,27 @@ public class WarForOilManager : MonoBehaviour
             }
         }
 
+        //olasılıklı savaş bitirme sonucu tekrar tetiklenmesi gereken event varsa öncelikli tetikle
+        if (forcedNextEvent != null)
+        {
+            if (!EventCoordinator.CanShowEvent()) return;
+            EventCoordinator.MarkEventShown();
+
+            currentEvent = forcedNextEvent;
+            forcedNextEvent = null;
+
+            currentState = WarForOilState.EventPhase;
+            eventDecisionTimer = currentEvent.decisionTime;
+
+            if (GameManager.Instance != null)
+                GameManager.Instance.PauseGame();
+
+            ApplyEventVandalismOnTrigger(currentEvent);
+            ApplyEventMediaPursuitOnTrigger(currentEvent);
+            OnWarEventTriggered?.Invoke(currentEvent);
+            return;
+        }
+
         //aktif event havuzunu belirle
         List<WarForOilEvent> eventPool = isCornerGrabRace ? database.cornerGrabEvents : database.events;
 
@@ -1671,6 +1759,7 @@ public class WarForOilManager : MonoBehaviour
             {
                 WarForOilEvent evt = eventPool[i];
                 if (warTimer < evt.minWarTime) continue;
+                if (dismissedEventIds.Contains(evt.id)) continue;
 
                 eventTriggerCounts.TryGetValue(evt, out int count);
                 if (count == 0)
@@ -1687,6 +1776,7 @@ public class WarForOilManager : MonoBehaviour
             {
                 WarForOilEvent evt = database.protestEvents[i];
                 if (warTimer < evt.minWarTime) continue;
+                if (dismissedEventIds.Contains(evt.id)) continue;
 
                 eventTriggerCounts.TryGetValue(evt, out int count);
                 if (count == 0)
@@ -1704,6 +1794,7 @@ public class WarForOilManager : MonoBehaviour
             {
                 WarForOilEvent evt = mediaPursuitPool[i];
                 if (warTimer < evt.minWarTime) continue;
+                if (dismissedEventIds.Contains(evt.id)) continue;
 
                 eventTriggerCounts.TryGetValue(evt, out int count);
                 if (count == 0)

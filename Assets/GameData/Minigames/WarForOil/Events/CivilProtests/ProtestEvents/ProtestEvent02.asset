@@ -19,7 +19,7 @@ MonoBehaviour:
     commercial nodes, and covert financial channels are taking damage. These attacks
     not only cause financial loss but also weaken the perception of your control.
     If left unchecked, your revenue flow could suffer severely.
-  devNote: 
+  devNote: "vandalizm ba\u015Flat\u0131r bizim pasif gelir miktar\u0131m\u0131z azal\u0131r"
   minWarTime: 0
   decisionTime: 10
   isRepeatable: 0
@@ -60,9 +60,17 @@ MonoBehaviour:
     vandalismChangeType: 0
     vandalismTargetLevel: 0
     vandalismLevelDelta: 0
+    affectsMediaPursuit: 0
+    mediaPursuitChangeType: 0
+    mediaPursuitTargetLevel: 0
+    mediaPursuitLevelDelta: 0
     requiredSkills: []
     statConditions: []
   defaultChoiceIndex: -1
+  isVandalismEvent: 1
+  vandalismLevelOnTrigger: 2
+  isMediaPursuitEvent: 0
+  mediaPursuitLevelOnTrigger: 0
   chainRole: 0
   nextChainEvent: {fileID: 0}
   chainInterval: 5
