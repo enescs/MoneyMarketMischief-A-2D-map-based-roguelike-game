@@ -221,8 +221,14 @@ public class WarForOilEventEditor : Editor
             EditorGUI.indentLevel++;
             EditorGUILayout.PropertyField(choice.FindPropertyRelative("protestModifier"),
                 new GUIContent("Toplum Tepkisi"));
-            EditorGUILayout.PropertyField(choice.FindPropertyRelative("protestTriggerChanceBonus"),
-                new GUIContent("Protest Tetikleme Bonusu"));
+            SerializedProperty protestBonus = choice.FindPropertyRelative("protestTriggerChanceBonus");
+            protestBonus.isExpanded = EditorGUILayout.Foldout(protestBonus.isExpanded, "Protest Tetikleme Bonusu", true);
+            if (protestBonus.isExpanded)
+            {
+                EditorGUI.indentLevel++;
+                EditorGUILayout.Slider(protestBonus, 0f, 1f, GUIContent.none);
+                EditorGUI.indentLevel--;
+            }
 
             SerializedProperty hasProtestChance = choice.FindPropertyRelative("hasProtestChance");
             EditorGUILayout.PropertyField(hasProtestChance, new GUIContent("Olasılıklı Tepki"));

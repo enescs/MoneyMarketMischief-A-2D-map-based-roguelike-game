@@ -18,6 +18,9 @@ public class WarForOilDatabase : ScriptableObject
     [Header("Savaş Eventleri")]
     public List<WarForOilEvent> events; //savaş sırasında tetiklenen eventler
 
+    [Header("Event Grupları")]
+    public List<WTETWCEventGroup> eventGroups; //event ilişki grupları (ağırlık + karşılıklı dışlama)
+
     [Header("Savaş Ayarları")]
     public float warDuration = 300f; //savaş süresi (saniye)
     public float eventInterval = 15f; //savaş sırasında event kontrol aralığı (saniye)

@@ -144,6 +144,29 @@ Her ulke icin ayri bir ScriptableObject asset'i olusturulur.
 
 **Not:** Eventler ulke uzerinde degil, Database uzerinde tanimlanir. Tum ulkeler ayni event havuzunu paylasir.
 
+### WTETWCEventGroup
+
+Event grup ve iliski sistemi. Ayni konseptteki eventler arasinda agirlik ve karsilikli dislama kurallari tanimlanir. Database'deki `eventGroups` listesine eklenir.
+
+| Alan | Aciklama |
+|------|----------|
+| `id` | Benzersiz kimlik |
+| `description` | Grup aciklamasi (TextArea) |
+| `members` | Grup uyeleri listesi (EventGroupMember) |
+| `maxTriggerCount` | Ayni savasta en fazla kac event tetiklenebilir (-1 = sinirsiz) |
+
+**EventGroupMember:**
+
+| Alan | Aciklama |
+|------|----------|
+| `warEvent` | Grup uyesi event referansi |
+| `triggerWeight` | Havuzda secilme agirligi (1 = normal, 0.3 = dusuk sans) |
+
+**Calisma Mantigi:**
+- **Agirlik:** Event seciminde weighted random kullanilir. Weight 0.3 olan event, weight 1.0 olana gore ~3 kat daha az secilir.
+- **Karsilikli Dislama:** maxTriggerCount=2 ve grupta 3 event varsa, 2 tanesi tetiklendikten sonra 3. su havuzdan cikarilir.
+- Grup disindaki eventler weight=1.0 ile normal calisir.
+
 ### WarForOilEvent
 
 Savas sirasinda tetiklenen karar olaylari. Ayni event sinifi normal eventler, zincir eventleri, kose kapma eventleri ve rakip teklif event'i icin kullanilir. Eventin hangi havuza ait oldugu Database'deki listeye gore belirlenir.

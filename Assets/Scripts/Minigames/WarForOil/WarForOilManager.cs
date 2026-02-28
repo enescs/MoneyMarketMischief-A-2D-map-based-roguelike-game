@@ -1592,6 +1592,67 @@ public class WarForOilManager : MonoBehaviour
         }
     }
 
+    // ==================== EVENT GRUP SİSTEMİ ====================
+
+    /// <summary>
+    /// Grup kontrolü: maxTriggerCount aşıldıysa bu event bloklanır.
+    /// </summary>
+    private bool IsBlockedByGroup(WarForOilEvent evt)
+    {
+        if (database.eventGroups == null) return false;
+
+        for (int i = 0; i < database.eventGroups.Count; i++)
+        {
+            var group = database.eventGroups[i];
+            if (group == null || group.members == null) continue;
+            if (group.maxTriggerCount < 0) continue; //sınırsız
+
+            //bu event grubun üyesi mi?
+            bool isMember = false;
+            for (int j = 0; j < group.members.Count; j++)
+            {
+                if (group.members[j].warEvent == evt) { isMember = true; break; }
+            }
+            if (!isMember) continue;
+
+            //gruptaki kaç farklı event tetiklendi? (kendisi hariç)
+            int triggeredCount = 0;
+            for (int j = 0; j < group.members.Count; j++)
+            {
+                var member = group.members[j];
+                if (member.warEvent == evt) continue;
+                eventTriggerCounts.TryGetValue(member.warEvent, out int c);
+                if (c > 0) triggeredCount++;
+            }
+
+            if (triggeredCount >= group.maxTriggerCount) return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Event'in ağırlığını döner. Grup üyesiyse member weight, değilse 1.
+    /// </summary>
+    private float GetEventWeight(WarForOilEvent evt)
+    {
+        if (database.eventGroups == null) return 1f;
+
+        for (int i = 0; i < database.eventGroups.Count; i++)
+        {
+            var group = database.eventGroups[i];
+            if (group == null || group.members == null) continue;
+
+            for (int j = 0; j < group.members.Count; j++)
+            {
+                if (group.members[j].warEvent == evt)
+                    return group.members[j].triggerWeight;
+            }
+        }
+
+        return 1f;
+    }
+
     // ==================== İÇ MANTIK ====================
 
     /// <summary>
@@ -1775,6 +1836,7 @@ public class WarForOilManager : MonoBehaviour
                 WarForOilEvent evt = eventPool[i];
                 if (warTimer < evt.minWarTime) continue;
                 if (dismissedEventIds.Contains(evt.id)) continue;
+                if (IsBlockedByGroup(evt)) continue;
 
                 eventTriggerCounts.TryGetValue(evt, out int count);
                 if (count == 0)
@@ -1792,6 +1854,7 @@ public class WarForOilManager : MonoBehaviour
                 WarForOilEvent evt = database.protestEvents[i];
                 if (warTimer < evt.minWarTime) continue;
                 if (dismissedEventIds.Contains(evt.id)) continue;
+                if (IsBlockedByGroup(evt)) continue;
 
                 eventTriggerCounts.TryGetValue(evt, out int count);
                 if (count == 0)
@@ -1810,6 +1873,7 @@ public class WarForOilManager : MonoBehaviour
                 WarForOilEvent evt = mediaPursuitPool[i];
                 if (warTimer < evt.minWarTime) continue;
                 if (dismissedEventIds.Contains(evt.id)) continue;
+                if (IsBlockedByGroup(evt)) continue;
 
                 eventTriggerCounts.TryGetValue(evt, out int count);
                 if (count == 0)
@@ -1824,9 +1888,20 @@ public class WarForOilManager : MonoBehaviour
         //EventCoordinator cooldown kontrolü
         if (!EventCoordinator.CanShowEvent()) return;
 
-        //rastgele bir event seç ve sayacını artır
-        int idx = UnityEngine.Random.Range(0, available.Count);
-        currentEvent = available[idx];
+        //ağırlıklı rastgele event seçimi (grup weight'leri uygulanır)
+        float totalWeight = 0f;
+        for (int i = 0; i < available.Count; i++)
+            totalWeight += GetEventWeight(available[i]);
+
+        float roll = UnityEngine.Random.value * totalWeight;
+        float cumulative = 0f;
+        int selectedIdx = 0;
+        for (int i = 0; i < available.Count; i++)
+        {
+            cumulative += GetEventWeight(available[i]);
+            if (roll <= cumulative) { selectedIdx = i; break; }
+        }
+        currentEvent = available[selectedIdx];
         eventTriggerCounts.TryGetValue(currentEvent, out int currentCount);
         eventTriggerCounts[currentEvent] = currentCount + 1;
 
