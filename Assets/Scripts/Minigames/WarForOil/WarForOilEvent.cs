@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 [CreateAssetMenu(menuName = "Minigames/WarForOil/Event")]
 public class WarForOilEvent : ScriptableObject
@@ -11,13 +12,15 @@ public class WarForOilEvent : ScriptableObject
     [Header("Geliştirici Notu")]
     [TextArea(3, 10)] public string devNote; //sadece Inspector'da görünür, oyuna etkisi yok
 
-    [Header("Skill Açıklaması")]
-    [TextArea(3, 10)] public string skillNote; //hangi skill'lerle bağlantılı olduğunun dev notu, oyuna etkisi yok
+    [Header("Event Açıklaması")]
+    [FormerlySerializedAs("skillNote")]
+    [TextArea(3, 10)] public string eventNote; //geliştiriciler için event açıklama notu, oyuna etkisi yok
 
     public float minWarTime = 0f; //bu event savaş başladıktan en az kaç saniye sonra gelebilir
     public float decisionTime = 10f; //karar süresi (saniye)
     public bool isRepeatable; //aynı savaşta tekrar tetiklenebilir mi
-    public int maxRepeatCount = 1; //en fazla kaç kez tekrar edebilir (isRepeatable true ise)
+    public bool isUnlimitedRepeat; //sınırsız tekrar (isRepeatable true ise)
+    public int maxRepeatCount = 1; //en fazla kaç kez tekrar edebilir (isRepeatable true ve isUnlimitedRepeat false ise)
     public List<WarForOilEventChoice> choices;
     public int defaultChoiceIndex = -1; //süre dolunca otomatik seçilecek seçenek (-1 = ilk seçenek)
 
@@ -66,6 +69,7 @@ public class WarForOilEventChoice
     public int costModifier; //maliyet etkisi
     public float cornerGrabModifier; //köşe kapma stat'ını etkiler (pozitif = bizim lehimize)
     public float protestModifier; //toplum tepkisi stat'ını etkiler (pozitif = tepki artar, negatif = azalır)
+    [Range(0f, 1f)] public float protestTriggerChanceBonus; //protest tetiklenme şansına eklenen bonus (yarılanarak söner)
     public bool hasProtestChance; //true ise protestModifier yerine olasılık bazlı sistem kullanılır
     [Range(0f, 1f)] public float protestDecreaseChance; //azalma ihtimali (0-1)
     public float protestDecreaseAmount; //azalma miktarı (pozitif değer, otomatik çıkarılır)

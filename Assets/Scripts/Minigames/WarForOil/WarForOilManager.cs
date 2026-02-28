@@ -60,6 +60,7 @@ public class WarForOilManager : MonoBehaviour
     private float protestStat; //toplum tepkisi değeri (0-100)
     private float protestDriftRate; //pasif drift hızı (son choice modifier / divisor, her tick'te uygulanır)
     private float protestDriftTimer; //drift tick zamanlayıcı
+    private float protestChanceBonus; //choice'lardan gelen protest tetiklenme şansı bonusu (yarılanarak söner)
 
     //vandalizm sistemi
     private bool vandalismPending; //trigger event bekliyor
@@ -326,6 +327,10 @@ public class WarForOilManager : MonoBehaviour
                 }
             }
         }
+
+        //protest tetiklenme şansı bonusu
+        if (choice.protestTriggerChanceBonus > 0f)
+            protestChanceBonus += choice.protestTriggerChanceBonus;
 
         //vandalizm seviyesi güncelle
         ApplyVandalismChange(choice);
@@ -1624,6 +1629,7 @@ public class WarForOilManager : MonoBehaviour
         protestStat = 0f;
         protestDriftRate = 0f;
         protestDriftTimer = 0f;
+        protestChanceBonus = 0f;
         vandalismPending = false;
         vandalismTriggered = false;
         pendingVandalismLevel = VandalismLevel.None;
@@ -1690,12 +1696,21 @@ public class WarForOilManager : MonoBehaviour
             && warTimer >= database.protestMinWarTime
             && database.protestTriggerEvent != null)
         {
-            if (UnityEngine.Random.value < database.protestChance)
+            float effectiveProtestChance = database.protestChance + protestChanceBonus;
+            if (UnityEngine.Random.value < effectiveProtestChance)
             {
                 protestPending = true;
                 protestTriggered = true; //bir daha tetiklenmez
+                protestChanceBonus = 0f; //tetiklendi, bonus artık gereksiz
                 OnProtestForeshadow?.Invoke();
                 return; //bu cycle'ı tüket, event gösterilmez
+            }
+            else
+            {
+                //tetiklenmedi — bonus yarılanarak söner
+                protestChanceBonus *= 0.5f;
+                if (protestChanceBonus < 0.01f)
+                    protestChanceBonus = 0f;
             }
         }
 
@@ -1764,7 +1779,7 @@ public class WarForOilManager : MonoBehaviour
                 eventTriggerCounts.TryGetValue(evt, out int count);
                 if (count == 0)
                     available.Add(evt);
-                else if (evt.isRepeatable && count <= evt.maxRepeatCount)
+                else if (evt.isRepeatable && (evt.isUnlimitedRepeat || count <= evt.maxRepeatCount))
                     available.Add(evt);
             }
         }
@@ -1781,7 +1796,7 @@ public class WarForOilManager : MonoBehaviour
                 eventTriggerCounts.TryGetValue(evt, out int count);
                 if (count == 0)
                     available.Add(evt);
-                else if (evt.isRepeatable && count <= evt.maxRepeatCount)
+                else if (evt.isRepeatable && (evt.isUnlimitedRepeat || count <= evt.maxRepeatCount))
                     available.Add(evt);
             }
         }
@@ -1799,7 +1814,7 @@ public class WarForOilManager : MonoBehaviour
                 eventTriggerCounts.TryGetValue(evt, out int count);
                 if (count == 0)
                     available.Add(evt);
-                else if (evt.isRepeatable && count <= evt.maxRepeatCount)
+                else if (evt.isRepeatable && (evt.isUnlimitedRepeat || count <= evt.maxRepeatCount))
                     available.Add(evt);
             }
         }
