@@ -281,6 +281,8 @@ Event icindeki tek bir secenek. Serializable sinif.
 | `mediaPursuitChangeType` | Direct (hedef seviye ata) veya Relative (+/- tik kaydirma) |
 | `mediaPursuitTargetLevel` | Direct modda: hedef MediaPursuitLevel (None/Low/Medium/High/Ended) |
 | `mediaPursuitLevelDelta` | Relative modda: seviye degisimi (orn. +1 = 1 tik artir, -1 = 1 tik azalt) |
+| **Kalici Stat Carpanlari** (foldout) | |
+| `permanentMultipliers` | Liste: birden fazla stat icin kalici carpan tanimlanabilir. Her entry: `stat` (StatType) + `multiplier` (float). Ornek: 1.1 = %10 artis. Carpisimsal birikir. Tum oyun boyunca, tum kaynaklardan gecerlidir. |
 | **On Kosullar** (foldout) | |
 | `requiredSkills` | Bu secenek icin acilmis olmasi gereken skill'ler |
 | `statConditions` | Bu secenek icin saglanmasi gereken stat kosullari |

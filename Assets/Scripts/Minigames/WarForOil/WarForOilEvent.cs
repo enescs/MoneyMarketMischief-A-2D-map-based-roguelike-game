@@ -25,9 +25,15 @@ public class WarForOilEvent : ScriptableObject
     public List<WarForOilEventChoice> choices;
     public int defaultChoiceIndex = -1; //süre dolunca otomatik seçilecek seçenek (-1 = ilk seçenek)
 
+    [Header("Narrative")]
+    public bool hasNarrative; //true ise event gösterildiğinde narrative metni de gösterilir
+    [TextArea(5, 20)] public string narrative; //UI'da gösterilecek anlatı metni
+
     [Header("Vandalizm Tetikleme")]
     public bool isVandalismEvent; //bu event tetiklendiğinde vandalizm seviyesi otomatik değişir
     public VandalismLevel vandalismLevelOnTrigger; //tetiklendiğinde atanacak vandalizm seviyesi
+    public bool startsVandalism; //true ise bu event vandalizm başlatıcı — vandalizm aktifken havuzdan çıkarılır
+    public bool forcesVandalismStart; //true ise vandalizm aktifken bile gelir (startsVandalism filtresini yok sayar)
 
     [Header("Medya Takibi Tetikleme")]
     public bool isMediaPursuitEvent; //bu event tetiklendiğinde medya takibi seviyesi otomatik değişir
@@ -109,6 +115,11 @@ public class WarForOilEventChoice
     [Range(0f, 1f)] public float probDismissChance; //event yok olma olasılığı (support=50 için base değer)
     public float probWarEndDelay; //savaş biterse gecikme süresi (saniye)
 
+    //zincir arası tick etkisi — bir sonraki chain eventine kadar her event aralığında uygulanır
+    public bool hasChainTickEffect; //true ise dallanma sonrası her event tick'inde stat etkisi uygulanır
+    public ChainTickStatType chainTickStat; //etkilenecek stat
+    public float chainTickAmount; //her tick'te uygulanacak miktar (pozitif = artır, negatif = azalt)
+
     //zincir dallanması — choice seçilince sıradaki chain event'in hangi havuzdan geleceğini belirler
     public ChainInfluenceStat chainInfluenceStat = ChainInfluenceStat.JustLuck; //dallanma seçimini etkileyen stat (JustLuck = stat yok)
     [Range(0f, 100f)] public float chainThreshold0 = 20f;  //1. eşik (0-t0 = aralık 0)
@@ -133,6 +144,9 @@ public class WarForOilEventChoice
     public MediaPursuitChangeType mediaPursuitChangeType; //direkt atama mı göreceli mi
     public MediaPursuitLevel mediaPursuitTargetLevel; //direkt atama: hedef seviye
     public int mediaPursuitLevelDelta; //göreceli değişim: +/- tık (Low=1, Medium=2, High=3)
+
+    //kalıcı stat çarpanları (seçildiğinde anında ve kalıcı uygulanır — tüm oyun boyunca geçerli)
+    public List<PermanentMultiplierEntry> permanentMultipliers = new List<PermanentMultiplierEntry>();
 
     //ön koşullar (Editor tarafından foldout içinde çizilir)
     public List<Skill> requiredSkills; //bu seçenek için açılmış olması gereken skill'ler
@@ -170,6 +184,17 @@ public enum ChainRole
 {
     None,   //normal event, zincir dışı
     Head    //zincirin başlangıç event'i — normal havuzdan tetiklenir, chain sürecini başlatır
+}
+
+/// <summary>
+/// Zincir arası tick etkisinde kullanılacak stat tipi.
+/// </summary>
+public enum ChainTickStatType
+{
+    Support,            //savaş destek stat'ı (WarForOilManager internal)
+    Suspicion,          //şüphe (GameStatManager)
+    Reputation,         //itibar (GameStatManager)
+    PoliticalInfluence  //politik nüfuz (GameStatManager)
 }
 
 /// <summary>
@@ -234,4 +259,14 @@ public enum MediaPursuitChangeType
 {
     Direct,     //direkt belirli bir seviyeye ata
     Relative    //mevcut seviyeyi +/- kaydır
+}
+
+/// <summary>
+/// Kalıcı stat çarpanı girişi. Bir choice birden fazla stat'ı kalıcı olarak çarpabilir.
+/// </summary>
+[System.Serializable]
+public class PermanentMultiplierEntry
+{
+    public StatType stat;
+    public float multiplier = 1f; //1.1 = %10 artış, 0.9 = %10 azalış
 }

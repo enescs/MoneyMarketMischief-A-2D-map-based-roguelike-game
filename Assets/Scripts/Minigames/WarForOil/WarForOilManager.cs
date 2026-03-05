@@ -52,6 +52,9 @@ public class WarForOilManager : MonoBehaviour
     private int chainSlotsRemaining; //bu döngüde kalan chain event sayısı
     private bool currentEventIsChainEvent; //şu anki event chain slotundan mı geldi (random slot eventleri chain'i bitirmesin)
     private float pendingChainEndWeight; //dallanma seçiminde chain bitme ağırlığı (0 = bitme yok)
+    private bool hasActiveChainTickEffect; //chain arası tick etkisi aktif mi
+    private ChainTickStatType activeChainTickStat; //tick etkisinin hedef stat'ı
+    private float activeChainTickAmount; //tick başına uygulanacak miktar
 
     //rakip işgal sistemi
     private bool isCornerGrabRace; //köşe kapma yarışı aktif mi
@@ -292,6 +295,16 @@ public class WarForOilManager : MonoBehaviour
                 SocialMediaManager.Instance.SetEventOverride(choice.feedOverrideTopic, choice.feedOverrideRatio, choice.feedOverrideDuration);
         }
 
+        //kalıcı stat çarpanları uygula
+        if (choice.permanentMultipliers != null && choice.permanentMultipliers.Count > 0 && GameStatManager.Instance != null)
+        {
+            for (int i = 0; i < choice.permanentMultipliers.Count; i++)
+            {
+                var entry = choice.permanentMultipliers[i];
+                GameStatManager.Instance.ApplyPermanentGainMultiplier(entry.stat, entry.multiplier);
+            }
+        }
+
         //supportStat güncelle
         supportStat = Mathf.Clamp(supportStat + choice.supportModifier, 0f, 100f);
 
@@ -357,7 +370,8 @@ public class WarForOilManager : MonoBehaviour
 
         currentEvent = null;
 
-        //zincir başlatma — Head event tetiklendiyse ve henüz zincirde değilsek
+        //zincir başlatma — Head event normal havuzdan tetiklendiyse ve zincirde değilsek
+        //zincirdeyken Head gelirse (dallanma ile) → zincirin parçası olarak devam eder, yeni zincir başlamaz
         if (!isInChain && resolvedEvent.chainRole == ChainRole.Head)
             StartChain(resolvedEvent);
 
@@ -374,6 +388,18 @@ public class WarForOilManager : MonoBehaviour
                 pendingChainThreshold1 = choice.chainThreshold1;
                 pendingChainThreshold2 = choice.chainThreshold2;
                 pendingChainEndWeight = choice.chainCanEnd ? choice.chainEndWeight : 0f;
+
+                //zincir arası tick etkisi
+                if (choice.hasChainTickEffect)
+                {
+                    hasActiveChainTickEffect = true;
+                    activeChainTickStat = choice.chainTickStat;
+                    activeChainTickAmount = choice.chainTickAmount;
+                }
+                else
+                {
+                    hasActiveChainTickEffect = false;
+                }
             }
             else
                 EndChain(); //dallanma yok → chain doğal olarak biter
@@ -738,6 +764,10 @@ public class WarForOilManager : MonoBehaviour
         {
             eventCheckTimer = 0f;
 
+            //zincir arası tick etkisi — her event aralığında uygulanır
+            if (hasActiveChainTickEffect)
+                ApplyChainTickEffect();
+
             if (isInChain)
             {
                 //3'lü döngü: chain slotları + random slotları
@@ -882,6 +912,7 @@ public class WarForOilManager : MonoBehaviour
         chainSlotsRemaining = 0;
         currentEventIsChainEvent = false;
         pendingChainEndWeight = 0f;
+        hasActiveChainTickEffect = false;
 
         OnChainEnded?.Invoke();
     }
@@ -953,6 +984,9 @@ public class WarForOilManager : MonoBehaviour
 
         if (selected == null) return;
 
+        //chain event tetiklenince önceki tick etkisi durur (yeni choice kendi etkisini başlatabilir)
+        hasActiveChainTickEffect = false;
+
         //event'i tetikle — chain slotundan geldiğini işaretle
         currentEventIsChainEvent = true;
         TriggerEvent(selected);
@@ -986,6 +1020,31 @@ public class WarForOilManager : MonoBehaviour
             case 2: return branch.weightRange2;
             case 3: return branch.weightRange3;
             default: return branch.weightRange0;
+        }
+    }
+
+    /// <summary>
+    /// Zincir arası tick etkisini uygular. Her event aralığında çağrılır.
+    /// </summary>
+    private void ApplyChainTickEffect()
+    {
+        switch (activeChainTickStat)
+        {
+            case ChainTickStatType.Support:
+                supportStat = Mathf.Clamp(supportStat + activeChainTickAmount, 0f, 100f);
+                break;
+            case ChainTickStatType.Suspicion:
+                if (GameStatManager.Instance != null)
+                    GameStatManager.Instance.AddSuspicion(activeChainTickAmount);
+                break;
+            case ChainTickStatType.Reputation:
+                if (GameStatManager.Instance != null)
+                    GameStatManager.Instance.AddReputation(activeChainTickAmount);
+                break;
+            case ChainTickStatType.PoliticalInfluence:
+                if (GameStatManager.Instance != null)
+                    GameStatManager.Instance.AddPoliticalInfluence(activeChainTickAmount);
+                break;
         }
     }
 
@@ -1800,6 +1859,7 @@ public class WarForOilManager : MonoBehaviour
         chainSlotsRemaining = 0;
         currentEventIsChainEvent = false;
         pendingChainEndWeight = 0f;
+        hasActiveChainTickEffect = false;
         isCornerGrabRace = false;
         rivalInvasionTriggered = false;
         rivalCountry = null;
@@ -1959,6 +2019,8 @@ public class WarForOilManager : MonoBehaviour
                 if (evt.maxWarTime >= 0f && warTimer > evt.maxWarTime * database.warDuration) continue;
                 if (dismissedEventIds.Contains(evt.id)) continue;
                 if (IsBlockedByGroup(evt)) continue;
+                //vandalizm aktifken vandalizm başlatıcı eventleri atla (forcesVandalismStart olanlar hariç)
+                if (evt.startsVandalism && !evt.forcesVandalismStart && currentVandalismLevel != VandalismLevel.None && currentVandalismLevel != VandalismLevel.Ended) continue;
 
                 eventTriggerCounts.TryGetValue(evt, out int count);
                 if (count == 0)
@@ -1978,6 +2040,7 @@ public class WarForOilManager : MonoBehaviour
                 if (evt.maxWarTime >= 0f && warTimer > evt.maxWarTime * database.warDuration) continue;
                 if (dismissedEventIds.Contains(evt.id)) continue;
                 if (IsBlockedByGroup(evt)) continue;
+                if (evt.startsVandalism && currentVandalismLevel != VandalismLevel.None && currentVandalismLevel != VandalismLevel.Ended) continue;
 
                 eventTriggerCounts.TryGetValue(evt, out int count);
                 if (count == 0)
@@ -1998,6 +2061,7 @@ public class WarForOilManager : MonoBehaviour
                 if (evt.maxWarTime >= 0f && warTimer > evt.maxWarTime * database.warDuration) continue;
                 if (dismissedEventIds.Contains(evt.id)) continue;
                 if (IsBlockedByGroup(evt)) continue;
+                if (evt.startsVandalism && currentVandalismLevel != VandalismLevel.None && currentVandalismLevel != VandalismLevel.Ended) continue;
 
                 eventTriggerCounts.TryGetValue(evt, out int count);
                 if (count == 0)

@@ -37,9 +37,16 @@ public class GameStatManager : MonoBehaviour
     private float reputation;
     private float politicalInfluence;
 
+    //kalıcı stat çarpanları — çarpımsal birikir (1.0 = etkisiz, 1.1 = %10 bonus)
+    private float wealthGainMultiplier = 1f;
+    private float suspicionGainMultiplier = 1f;
+    private float reputationGainMultiplier = 1f;
+    private float politicalInfluenceGainMultiplier = 1f;
+
     //events
     public static event Action<StatType, float, float> OnStatChanged; //stat, oldValue, newValue
     public static event Action OnGameOver; //şüphe 100'e ulaştığında
+    public static event Action<StatType, float> OnPermanentMultiplierChanged; //stat, yeni toplam çarpan
 
     private void Awake()
     {
@@ -102,6 +109,42 @@ public class GameStatManager : MonoBehaviour
         return Mathf.Lerp(minSkillEfficiency, maxSkillEfficiency, t);
     }
 
+    /// <summary>
+    /// Belirtilen stat'ın kalıcı kazanım çarpanını çarpımsal olarak uygular.
+    /// Örn: ApplyPermanentGainMultiplier(Reputation, 1.1f) → mevcut çarpan *= 1.1
+    /// </summary>
+    public void ApplyPermanentGainMultiplier(StatType statType, float multiplier)
+    {
+        switch (statType)
+        {
+            case StatType.Wealth:
+                wealthGainMultiplier *= multiplier;
+                break;
+            case StatType.Suspicion:
+                suspicionGainMultiplier *= multiplier;
+                break;
+            case StatType.Reputation:
+                reputationGainMultiplier *= multiplier;
+                break;
+            case StatType.PoliticalInfluence:
+                politicalInfluenceGainMultiplier *= multiplier;
+                break;
+        }
+        OnPermanentMultiplierChanged?.Invoke(statType, GetPermanentGainMultiplier(statType));
+    }
+
+    public float GetPermanentGainMultiplier(StatType statType)
+    {
+        return statType switch
+        {
+            StatType.Wealth => wealthGainMultiplier,
+            StatType.Suspicion => suspicionGainMultiplier,
+            StatType.Reputation => reputationGainMultiplier,
+            StatType.PoliticalInfluence => politicalInfluenceGainMultiplier,
+            _ => 1f
+        };
+    }
+
     #endregion
 
     #region Stat Modification
@@ -127,6 +170,9 @@ public class GameStatManager : MonoBehaviour
 
     public void AddWealth(float amount)
     {
+        if (amount > 0)
+            amount *= wealthGainMultiplier;
+
         float oldValue = wealth;
         wealth += amount;
 
@@ -141,10 +187,11 @@ public class GameStatManager : MonoBehaviour
     {
         float oldValue = suspicion;
 
-        //sadece pozitif değerlerde (şüphe artışında) itibar çarpanı uygula
+        //sadece pozitif değerlerde (şüphe artışında) çarpanlar uygulanır
         if (amount > 0)
         {
             amount *= GetSuspicionMultiplier();
+            amount *= suspicionGainMultiplier;
         }
 
         suspicion = Mathf.Clamp(suspicion + amount, minSuspicion, maxSuspicion);
@@ -180,6 +227,9 @@ public class GameStatManager : MonoBehaviour
 
     public void AddReputation(float amount)
     {
+        if (amount > 0)
+            amount *= reputationGainMultiplier;
+
         float oldValue = reputation;
         reputation = Mathf.Clamp(reputation + amount, minReputation, maxReputation);
 
@@ -191,6 +241,9 @@ public class GameStatManager : MonoBehaviour
 
     public void AddPoliticalInfluence(float amount)
     {
+        if (amount > 0)
+            amount *= politicalInfluenceGainMultiplier;
+
         float oldValue = politicalInfluence;
         politicalInfluence = Mathf.Clamp(politicalInfluence + amount, minPoliticalInfluence, maxPoliticalInfluence);
 
