@@ -64,7 +64,7 @@ public class PetroleumSkillUI : MonoBehaviour
         if (popupRoot == null) BuildAll();
         popupRoot.SetActive(true);
         actionBar.SetActive(false);
-        if (timerSliderGO != null) timerSliderGO.SetActive(false);
+        timerSliderGO.SetActive(false);
         popupOpen = true;
     }
 
@@ -112,7 +112,9 @@ public class PetroleumSkillUI : MonoBehaviour
     void RestoreUI()
     {
         actionBar.SetActive(false);
-        if (timerSliderGO != null) timerSliderGO.SetActive(false);
+        // Only hide timer if no background research is running
+        if (petroleumSystem == null || petroleumSystem.PendingResearchCount == 0)
+            timerSliderGO.SetActive(false);
         if (uiManager != null)
         {
             Camera cam = uiManager.mainCamera.GetComponent<Camera>();
@@ -132,6 +134,7 @@ public class PetroleumSkillUI : MonoBehaviour
         confirmBtn.SetActive(false);
         acceptBtn.SetActive(false);
         costLabel.SetActive(false);
+        timerSliderGO.SetActive(false);
         petroleumSystem.EnterResearchMode();
     }
 
@@ -143,7 +146,7 @@ public class PetroleumSkillUI : MonoBehaviour
         cancelBtn.SetActive(true);
         confirmBtn.SetActive(false);
         acceptBtn.SetActive(true);
-        // Show pump cost info
+        timerSliderGO.SetActive(false);
         costLabel.SetActive(true);
         if (costText != null)
         {
@@ -162,7 +165,11 @@ public class PetroleumSkillUI : MonoBehaviour
 
     // === EVENT HANDLERS ===
 
-    void OnFinished() { RestoreUI(); popupOpen = false; }
+    void OnFinished()
+    {
+        RestoreUI();
+        popupOpen = false;
+    }
 
     void OnCostChanged(float cost)
     {
@@ -199,26 +206,40 @@ public class PetroleumSkillUI : MonoBehaviour
 
     void OnTimerStarted(float duration)
     {
-        if (confirmBtn != null) confirmBtn.SetActive(false);
-        if (timerSliderGO == null) BuildTimerSlider();
-        timerSliderGO.SetActive(true);
+        // Timer starts after UI is already restored — show slider on normal map view
+        if (timerSliderGO != null) timerSliderGO.SetActive(true);
         if (timerFill != null) timerFill.fillAmount = 0f;
         if (timerText != null) timerText.text = $"Researching... 0/{duration:F1}s";
     }
 
     void OnTimerProgress(float progress)
     {
+        if (timerSliderGO != null && !timerSliderGO.activeSelf)
+            timerSliderGO.SetActive(true);
         if (timerFill != null) timerFill.fillAmount = progress;
         if (timerText != null && petroleumSystem != null)
         {
             float d = petroleumSystem.GetResearchDuration();
             timerText.text = $"Researching... {(d * progress):F1}/{d:F1}s";
         }
+        // Hide when done (progress == 1 means complete, next frame PendingResearch is removed)
+        if (progress >= 1f && timerSliderGO != null)
+            timerSliderGO.SetActive(false);
     }
 
     // === BUILD UI ===
 
-    void BuildAll() { EnsureCanvas(); BuildPopup(); BuildActionBar(); BuildTimerSlider(); }
+    void BuildAll()
+    {
+        EnsureCanvas();
+        BuildPopup();
+        BuildActionBar();
+        BuildTimerSlider();
+        // Everything starts hidden
+        popupRoot.SetActive(false);
+        actionBar.SetActive(false);
+        timerSliderGO.SetActive(false);
+    }
 
     void BuildPopup()
     {
@@ -237,7 +258,6 @@ public class PetroleumSkillUI : MonoBehaviour
         IconBtn("Research", researchIcon, new Color(0.2f, 0.6f, 0.9f), OnResearchClicked, popupRoot.transform);
         IconBtn("Pump", pumpIcon, new Color(0.9f, 0.6f, 0.1f), OnPumpClicked, popupRoot.transform);
         IconBtn("Cancel", cancelIcon, new Color(0.8f, 0.25f, 0.25f), OnPopupCancel, popupRoot.transform);
-        popupRoot.SetActive(false);
     }
 
     void BuildActionBar()
@@ -246,15 +266,15 @@ public class PetroleumSkillUI : MonoBehaviour
         var art = actionBar.GetComponent<RectTransform>();
         art.anchorMin = new Vector2(0.5f, 0f); art.anchorMax = new Vector2(0.5f, 0f);
         art.pivot = new Vector2(0.5f, 0f);
-        art.sizeDelta = new Vector2(actionW * 3 + actionGap * 2 + 20, actionH + 50);
+        art.sizeDelta = new Vector2(actionW * 3 + actionGap * 2 + 20, actionH + 70);
         art.anchoredPosition = new Vector2(0f, actionBottom);
         var hlg = actionBar.AddComponent<HorizontalLayoutGroup>();
         hlg.spacing = actionGap; hlg.childAlignment = TextAnchor.MiddleCenter;
         hlg.childForceExpandWidth = hlg.childForceExpandHeight = false;
         hlg.padding = new RectOffset(10, 10, 5, 5);
-        cancelBtn = ActBtn("Cancel", cancelColor, OnCancelClick, actionBar.transform);
+        cancelBtn  = ActBtn("Cancel",  cancelColor,  OnCancelClick,  actionBar.transform);
         confirmBtn = ActBtn("Confirm", confirmColor, OnConfirmClick, actionBar.transform);
-        acceptBtn = ActBtn("Accept", confirmColor, OnAcceptClick, actionBar.transform);
+        acceptBtn  = ActBtn("Accept",  confirmColor, OnAcceptClick,  actionBar.transform);
 
         costLabel = UI("CostLbl", actionBar.transform);
         var clrt = costLabel.GetComponent<RectTransform>();
@@ -266,7 +286,6 @@ public class PetroleumSkillUI : MonoBehaviour
         costText.fontSize = actionFont; costText.color = Color.white;
         costText.alignment = TextAnchor.MiddleCenter; costText.fontStyle = FontStyle.Bold;
         costLabel.AddComponent<Shadow>().effectColor = Color.black;
-        actionBar.SetActive(false);
     }
 
     void BuildTimerSlider()
@@ -276,7 +295,7 @@ public class PetroleumSkillUI : MonoBehaviour
         rt.anchorMin = new Vector2(0.5f, 0f); rt.anchorMax = new Vector2(0.5f, 0f);
         rt.pivot = new Vector2(0.5f, 0f);
         rt.sizeDelta = new Vector2(450, 56);
-        rt.anchoredPosition = new Vector2(0f, actionBottom + actionH + 20);
+        rt.anchoredPosition = new Vector2(0f, actionBottom + actionH + 90);
 
         timerSliderGO.AddComponent<Image>().color = new Color(0.15f, 0.15f, 0.18f, 0.9f);
 
@@ -301,8 +320,6 @@ public class PetroleumSkillUI : MonoBehaviour
         timerText.fontSize = 20; timerText.color = Color.white;
         timerText.alignment = TextAnchor.MiddleCenter; timerText.fontStyle = FontStyle.Bold;
         txtGO.AddComponent<Shadow>().effectColor = Color.black;
-
-        timerSliderGO.SetActive(false);
     }
 
     // === HELPERS ===
@@ -326,7 +343,7 @@ public class PetroleumSkillUI : MonoBehaviour
         var ico = UI("I", b.transform);
         var irt = ico.GetComponent<RectTransform>();
         irt.anchorMin = Vector2.zero; irt.anchorMax = Vector2.one;
-        irt.offsetMin = Vector2.one * 12; irt.offsetMax = Vector2.one * -12;
+        irt.offsetMin = Vector2.one * 14; irt.offsetMax = Vector2.one * -14;
         var im = ico.AddComponent<Image>();
         if (icon != null) { im.sprite = icon; im.color = Color.white; } else im.color = fb;
         im.preserveAspect = true;
@@ -335,7 +352,7 @@ public class PetroleumSkillUI : MonoBehaviour
         var t = l.AddComponent<Text>(); t.text = label;
         t.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         t.fontSize = fontSize; t.color = lblColor; t.alignment = TextAnchor.MiddleCenter;
-        var lle = l.AddComponent<LayoutElement>(); lle.preferredWidth = btnSize; lle.preferredHeight = fontSize + 4;
+        var lle = l.AddComponent<LayoutElement>(); lle.preferredWidth = btnSize; lle.preferredHeight = fontSize + 6;
     }
 
     GameObject ActBtn(string label, Color bg, UnityEngine.Events.UnityAction cb, Transform p)

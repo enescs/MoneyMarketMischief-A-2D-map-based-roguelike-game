@@ -32,9 +32,10 @@ public class PetroleumSystem : MonoBehaviour
     [Range(0.01f, 0.2f)] public float circleWidth = 0.06f;
     public int circleSegments = 64;
 
-    [Header("Highlight")]
-    public Color highlightColor = new Color(0.15f, 0.85f, 0.3f, 0.45f);
-    public float pixelsPerUnit  = 100f;
+    [Header("Research Highlight")]
+    [Tooltip("Color painted on tiles where petroleum is found after research. Faint black by default.")]
+    public Color researchRevealColor = new Color(0f, 0f, 0f, 0.55f);
+    public float pixelsPerUnit = 100f;
 
     [Header("Pump")]
     public float pumpPlacementCost   = 200f;
@@ -46,7 +47,10 @@ public class PetroleumSystem : MonoBehaviour
     public float  pumpScale   = 1f;
 
     [Header("Debug")]
-    public bool debugRevealBeds = true;
+    [SerializeField] [Tooltip("Reveal all petroleum beds on map at start (green overlay). For testing only.")]
+    private bool debugRevealBeds = false;
+    [Tooltip("Color used for debug bed reveal.")]
+    public Color debugRevealColor = new Color(0.15f, 0.85f, 0.3f, 0.45f);
 
     public enum Mode { None, Research, Pump }
     public Mode CurrentMode => currentMode;
@@ -61,17 +65,25 @@ public class PetroleumSystem : MonoBehaviour
     public static event Action<float> OnInsufficientFunds;
     public static event Action<float> OnResearchTimerStarted;
     public static event Action<float> OnResearchTimerProgress;
-    /// <summary>Fires after a pump is placed. Passes remaining wealth.</summary>
     public static event Action<float> OnPumpPlaced;
 
-    // Research state
-    private bool       hasCircle, isDragging, isTimerRunning;
-    private float      timerElapsed, timerDuration;
-    private Vector2Int researchCenter, confirmedCenter;
-    private int        researchRadius, confirmedRadius;
+    // Research state (interaction)
+    private bool       hasCircle, isDragging;
+    private Vector2Int researchCenter;
+    private int        researchRadius;
     private Vector2    dragStartScreen;
     private GameObject circleGO;
     private LineRenderer circleLR;
+
+    // Background research queue — runs while player does other things
+    private class PendingResearch
+    {
+        public Vector2Int center;
+        public int        radius;
+        public float      elapsed;
+        public float      duration;
+    }
+    private List<PendingResearch> pendingResearches = new List<PendingResearch>();
 
     // Pump state
     private List<FuelPump>   sessionPumps   = new List<FuelPump>();
@@ -104,8 +116,16 @@ public class PetroleumSystem : MonoBehaviour
     void OnEnable()  { PetroleumBedGenerator.OnPetroleumGenerated += OnBedsGenerated; }
     void OnDisable() { PetroleumBedGenerator.OnPetroleumGenerated -= OnBedsGenerated; }
 
-    void OnBedsGenerated() { if (debugRevealBeds) StartCoroutine(DebugRevealNextFrame()); }
-    IEnumerator DebugRevealNextFrame() { yield return null; RevealAllBeds(); }
+    void OnBedsGenerated()
+    {
+        if (debugRevealBeds) StartCoroutine(DebugRevealNextFrame());
+    }
+
+    IEnumerator DebugRevealNextFrame()
+    {
+        yield return null;
+        DebugRevealAllBeds();
+    }
 
     void Start()
     {
@@ -116,6 +136,10 @@ public class PetroleumSystem : MonoBehaviour
     void Update()
     {
         if (bedGen == null) bedGen = PetroleumBedGenerator.Instance;
+
+        // Tick background researches regardless of current mode
+        TickPendingResearches();
+
         switch (currentMode)
         {
             case Mode.Research: UpdateResearch(); break;
@@ -124,13 +148,36 @@ public class PetroleumSystem : MonoBehaviour
         AccumulateIncome();
     }
 
+    void TickPendingResearches()
+    {
+        if (pendingResearches.Count == 0) return;
+        if (bedGen == null || !bedGen.IsGenerated) return;
+
+        float dt = Time.deltaTime;
+        for (int i = pendingResearches.Count - 1; i >= 0; i--)
+        {
+            var pr = pendingResearches[i];
+            pr.elapsed += dt;
+
+            // Broadcast progress for the most recent research (UI can show it)
+            if (i == pendingResearches.Count - 1)
+                OnResearchTimerProgress?.Invoke(Mathf.Clamp01(pr.elapsed / pr.duration));
+
+            if (pr.elapsed >= pr.duration)
+            {
+                PerformResearchScan(pr.center, pr.radius);
+                pendingResearches.RemoveAt(i);
+                Debug.Log($"Araştırma tamamlandı: ({pr.center.x},{pr.center.y}) R={pr.radius}");
+            }
+        }
+    }
+
     // === MODE CONTROL ===
 
     public void EnterResearchMode()
     {
         currentMode = Mode.Research;
-        hasCircle = isDragging = isTimerRunning = false;
-        timerElapsed = 0f;
+        hasCircle = isDragging = false;
         ShowCircle(false);
     }
 
@@ -145,7 +192,6 @@ public class PetroleumSystem : MonoBehaviour
     {
         if (currentMode == Mode.Research)
         {
-            isTimerRunning = false;
             ShowCircle(false);
         }
         else if (currentMode == Mode.Pump)
@@ -164,7 +210,7 @@ public class PetroleumSystem : MonoBehaviour
 
     public void ConfirmResearch()
     {
-        if (currentMode != Mode.Research || !hasCircle || isTimerRunning) return;
+        if (currentMode != Mode.Research || !hasCircle) return;
 
         float cost = GetCurrentResearchCost();
         if (GameStatManager.Instance != null && !GameStatManager.Instance.TrySpendWealth(cost))
@@ -173,23 +219,29 @@ public class PetroleumSystem : MonoBehaviour
             return;
         }
 
-        confirmedCenter = researchCenter;
-        confirmedRadius = researchRadius;
-        timerDuration = GetResearchDuration();
+        float dur = GetResearchDuration();
 
-        if (bypassResearchTimer || timerDuration <= 0f)
+        if (bypassResearchTimer || dur <= 0f)
         {
-            PerformResearchScan(confirmedCenter, confirmedRadius);
-            ShowCircle(false);
-            currentMode = Mode.None;
-            OnResearchDone?.Invoke();
+            // Instant
+            PerformResearchScan(researchCenter, researchRadius);
         }
         else
         {
-            isTimerRunning = true;
-            timerElapsed = 0f;
-            OnResearchTimerStarted?.Invoke(timerDuration);
+            // Queue background research
+            pendingResearches.Add(new PendingResearch
+            {
+                center   = researchCenter,
+                radius   = researchRadius,
+                elapsed  = 0f,
+                duration = dur
+            });
+            OnResearchTimerStarted?.Invoke(dur);
         }
+
+        ShowCircle(false);
+        currentMode = Mode.None;
+        OnResearchDone?.Invoke();
     }
 
     public void AcceptPumps()
@@ -209,27 +261,14 @@ public class PetroleumSystem : MonoBehaviour
         return researchDuration;
     }
 
+    /// <summary>Number of researches currently running in background.</summary>
+    public int PendingResearchCount => pendingResearches.Count;
+
     // === RESEARCH UPDATE ===
 
     void UpdateResearch()
     {
         if (bedGen == null || !bedGen.IsGenerated) return;
-
-        if (isTimerRunning)
-        {
-            timerElapsed += Time.deltaTime;
-            float progress = Mathf.Clamp01(timerElapsed / timerDuration);
-            OnResearchTimerProgress?.Invoke(progress);
-            if (timerElapsed >= timerDuration)
-            {
-                isTimerRunning = false;
-                PerformResearchScan(confirmedCenter, confirmedRadius);
-                ShowCircle(false);
-                currentMode = Mode.None;
-                OnResearchDone?.Invoke();
-            }
-            return;
-        }
 
         Mouse mouse = Mouse.current;
         if (mouse == null || IsPointerOverUI()) return;
@@ -278,23 +317,24 @@ public class PetroleumSystem : MonoBehaviour
         }
     }
 
-    // === SCAN ===
+    // === SCAN — paints faint black on discovered petroleum tiles ===
 
     public void PerformResearchScan(Vector2Int center, int radius)
     {
         if (bedGen == null || !bedGen.IsGenerated) return;
         var found = bedGen.GetPetroleumTilesInCircle(center, radius);
-        if (found.Count > 0) HighlightTiles(found);
+        if (found.Count > 0) HighlightTiles(found, researchRevealColor);
         Debug.Log($"Araştırma: ({center.x},{center.y}) R={radius} → {found.Count} petrol karesi");
     }
 
-    public void RevealAllBeds()
+    /// <summary>Debug only: reveals ALL beds with green overlay.</summary>
+    public void DebugRevealAllBeds()
     {
         if (bedGen == null || !bedGen.IsGenerated) return;
         int w = mapGenerator.width, h = mapGenerator.height;
         var all = new List<Vector2Int>();
         for (int x = 0; x < w; x++) for (int y = 0; y < h; y++) if (bedGen.HasPetroleum(x, y)) all.Add(new Vector2Int(x, y));
-        HighlightTiles(all);
+        HighlightTiles(all, debugRevealColor);
     }
 
     // === PUMP PLACEMENT ===
@@ -330,8 +370,7 @@ public class PetroleumSystem : MonoBehaviour
     {
         if (i < 0 || i >= allPumps.Count) return;
         if (i < allPumpGOs.Count && allPumpGOs[i] != null) Destroy(allPumpGOs[i]);
-        allPumps.RemoveAt(i);
-        if (i < allPumpGOs.Count) allPumpGOs.RemoveAt(i);
+        allPumps.RemoveAt(i); if (i < allPumpGOs.Count) allPumpGOs.RemoveAt(i);
     }
 
     GameObject SpawnPumpVisual(FuelPump pump)
@@ -347,7 +386,7 @@ public class PetroleumSystem : MonoBehaviour
         {
             var tex = new Texture2D(4, 4);
             Color c = pump.onBed ? Color.green : Color.red;
-            for (int i = 0; i < 16; i++) tex.SetPixel(i % 4, i / 4, c);
+            for (int j = 0; j < 16; j++) tex.SetPixel(j % 4, j / 4, c);
             tex.Apply();
             sr.sprite = Sprite.Create(tex, new Rect(0, 0, 4, 4), new Vector2(0.5f, 0.5f), 16f);
         }
@@ -368,9 +407,9 @@ public class PetroleumSystem : MonoBehaviour
     public float GetTotalEarned() { float t = 0; foreach (var p in allPumps) t += p.totalEarned; return t; }
     public IReadOnlyList<FuelPump> GetPumps() => allPumps.AsReadOnly();
 
-    // === HIGHLIGHTING ===
+    // === HIGHLIGHTING — generic, takes a color ===
 
-    void HighlightTiles(List<Vector2Int> tiles)
+    void HighlightTiles(List<Vector2Int> tiles, Color tintColor)
     {
         EnsureMapTexture(); if (mapTexture == null) return;
         foreach (var t in tiles)
@@ -380,10 +419,9 @@ public class PetroleumSystem : MonoBehaviour
             revealedPixels.Add(key);
             if (!originalColors.ContainsKey(key)) originalColors[key] = mapTexture.GetPixel(t.x, t.y);
             Color orig = originalColors[key];
-            float a = Mathf.Lerp(highlightColor.a * 0.4f, highlightColor.a, bedGen.GetPurity(t.x, t.y));
-            Color tint = new Color(highlightColor.r, highlightColor.g, highlightColor.b, a);
-            Color c = Color.Lerp(orig, tint, tint.a); c.a = 1f;
-            mapTexture.SetPixel(t.x, t.y, c);
+            Color blended = Color.Lerp(orig, new Color(tintColor.r, tintColor.g, tintColor.b, 1f), tintColor.a);
+            blended.a = 1f;
+            mapTexture.SetPixel(t.x, t.y, blended);
         }
         mapTexture.Apply();
     }

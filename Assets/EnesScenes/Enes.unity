@@ -10240,15 +10240,15 @@ MonoBehaviour:
   mapPainter: {fileID: 1710072559}
   mainCamera: {fileID: 1868648585}
   minScanRadius: 8
-  maxScanRadius: 40
+  maxScanRadius: 80
   defaultScanRadius: 15
   researchCostPerTile: 0.5
   researchDuration: 5
-  bypassResearchTimer: 0
+  bypassResearchTimer: 1
   circleColor: {r: 1, g: 1, b: 0, a: 0.8}
   circleWidth: 0.03
   circleSegments: 64
-  highlightColor: {r: 0.15, g: 0.85, b: 0.3, a: 0.45}
+  researchRevealColor: {r: 0, g: 0, b: 0, a: 1}
   pixelsPerUnit: 100
   pumpPlacementCost: 200
   baseIncomePerSecond: 10
@@ -10258,6 +10258,7 @@ MonoBehaviour:
   pumpSpriteZ: -0.6
   pumpScale: 1
   debugRevealBeds: 1
+  debugRevealColor: {r: 0.15, g: 0.85, b: 0.3, a: 0.45}
 --- !u!114 &1710072566
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -12230,6 +12231,10 @@ PrefabInstance:
     - target: {fileID: 6020507653955250300, guid: 384b4bb300e251d42a643bba49396562, type: 3}
       propertyPath: m_Name
       value: Managers
+      objectReference: {fileID: 0}
+    - target: {fileID: 7258465140580761787, guid: 384b4bb300e251d42a643bba49396562, type: 3}
+      propertyPath: startingWealth
+      value: 1e+11
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
