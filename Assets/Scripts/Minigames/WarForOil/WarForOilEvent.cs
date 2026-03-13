@@ -41,6 +41,7 @@ public class WarForOilEvent : ScriptableObject
 
     [Header("Kadın Süreci")]
     public bool isWomanProcessEvent; //true ise bu event kadın süreci havuzlarında kullanılır
+    public List<WarForOilEvent> blockedWomanProcessEvents; //bu event tetiklenince havuzdan/zincirlerden çıkarılacak eventler
 
     [Header("Zincir Ayarları")]
     public ChainRole chainRole = ChainRole.None; //bu event zincirde mi (Head = zincir başlatıcı)

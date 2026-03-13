@@ -30,7 +30,7 @@ public class WarForOilEventEditor : Editor
             "hasNarrative", "narrative",
             "isVandalismEvent", "vandalismLevelOnTrigger", "startsVandalism", "forcesVandalismStart",
             "isMediaPursuitEvent", "mediaPursuitLevelOnTrigger",
-            "isWomanProcessEvent",
+            "isWomanProcessEvent", "blockedWomanProcessEvents",
             "chainRole", "blocksSubChainBranching", "alsoBlockedBranchEvents");
 
         //isRepeatable açıksa tekrar seçeneklerini göster
@@ -135,9 +135,14 @@ public class WarForOilEventEditor : Editor
         EditorGUILayout.PropertyField(isWomanProcessEvent, new GUIContent("Kadın Süreci Eventi"));
         if (isWomanProcessEvent.boolValue)
         {
+            EditorGUI.indentLevel++;
+            EditorGUILayout.PropertyField(
+                serializedObject.FindProperty("blockedWomanProcessEvents"),
+                new GUIContent("Yasaklanan Eventler"), true);
             EditorGUILayout.HelpBox(
-                "Bu event kadın süreci havuzlarında kullanılır. Choice'larda womanObsessionModifier alanı görünür.",
+                "Bu event tetiklenince listedeki eventler havuzdan ve zincirlerden çıkarılır. Head ise zinciri hiç başlamaz, dal ise ağırlığı diğerlerine kayar.",
                 MessageType.Info);
+            EditorGUI.indentLevel--;
         }
 
         EditorGUILayout.Space();
@@ -288,13 +293,19 @@ public class WarForOilEventEditor : Editor
         {
             EditorGUI.indentLevel++;
 
-            EditorGUILayout.PropertyField(
-                choice.FindPropertyRelative("startsWomanProcess"),
-                new GUIContent("Kadın Sürecini Başlat"));
-
-            EditorGUILayout.PropertyField(
-                choice.FindPropertyRelative("endsWomanProcess"),
-                new GUIContent("Kadın Sürecini Bitir"));
+            //kadın süreci — başlat/bitir yan yana, aynı anda ikisi seçilemez
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.PrefixLabel("Kadın Süreci");
+            SerializedProperty startsWP = choice.FindPropertyRelative("startsWomanProcess");
+            SerializedProperty endsWP = choice.FindPropertyRelative("endsWomanProcess");
+            bool newStarts = GUILayout.Toggle(startsWP.boolValue, "Başlat", EditorStyles.miniButtonLeft, GUILayout.Width(60));
+            bool newEnds = GUILayout.Toggle(endsWP.boolValue, "Bitir", EditorStyles.miniButtonRight, GUILayout.Width(60));
+            //biri aktifleşince diğerini kapat
+            if (newStarts && !startsWP.boolValue) newEnds = false;
+            if (newEnds && !endsWP.boolValue) newStarts = false;
+            startsWP.boolValue = newStarts;
+            endsWP.boolValue = newEnds;
+            EditorGUILayout.EndHorizontal();
 
             SerializedProperty endsWar = choice.FindPropertyRelative("endsWar");
             EditorGUILayout.PropertyField(endsWar, new GUIContent("Savaş Bitir"));

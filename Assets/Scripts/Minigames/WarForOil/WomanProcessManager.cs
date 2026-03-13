@@ -20,6 +20,7 @@ public class WomanProcessManager : MonoBehaviour
     private float eventDecisionTimer;
     private bool pendingTrigger; //bir sonraki uygun anda kadın eventi tetiklenecek
     private Dictionary<WarForOilEvent, int> womanEventTriggerCounts = new Dictionary<WarForOilEvent, int>();
+    private HashSet<WarForOilEvent> dismissedWomanEvents = new HashSet<WarForOilEvent>(); //yasaklanan eventler
 
     //zincir durumu
     private bool isInWomanChain;
@@ -147,6 +148,7 @@ public class WomanProcessManager : MonoBehaviour
         pendingTrigger = false;
         currentWomanEvent = null;
         womanEventTriggerCounts.Clear();
+        dismissedWomanEvents.Clear();
         isInWomanChain = false;
         pendingWomanChainBranches = null;
         currentState = WomanProcessState.Active;
@@ -390,6 +392,16 @@ public class WomanProcessManager : MonoBehaviour
         womanEventTriggerCounts.TryGetValue(evt, out int count);
         womanEventTriggerCounts[evt] = count + 1;
 
+        //tetiklenen eventin yasakladığı eventleri dismissed'e ekle
+        if (evt.blockedWomanProcessEvents != null)
+        {
+            for (int i = 0; i < evt.blockedWomanProcessEvents.Count; i++)
+            {
+                if (evt.blockedWomanProcessEvents[i] != null)
+                    dismissedWomanEvents.Add(evt.blockedWomanProcessEvents[i]);
+            }
+        }
+
         EventCoordinator.MarkEventShown();
 
         currentState = WomanProcessState.EventPhase;
@@ -434,7 +446,8 @@ public class WomanProcessManager : MonoBehaviour
 
         for (int i = 0; i < pendingWomanChainBranches.Count; i++)
         {
-            if (pendingWomanChainBranches[i].targetEvent == null)
+            if (pendingWomanChainBranches[i].targetEvent == null
+                || dismissedWomanEvents.Contains(pendingWomanChainBranches[i].targetEvent))
             {
                 weights[i] = 0f;
                 continue;
@@ -513,6 +526,9 @@ public class WomanProcessManager : MonoBehaviour
         {
             WarForOilEvent evt = pool[i];
             if (evt == null) continue;
+
+            //yasaklanmış mı
+            if (dismissedWomanEvents.Contains(evt)) continue;
 
             //tekrar kontrolü
             if (!evt.isRepeatable)

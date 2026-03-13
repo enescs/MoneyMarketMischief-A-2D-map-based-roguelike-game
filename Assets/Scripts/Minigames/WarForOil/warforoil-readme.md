@@ -208,6 +208,7 @@ Savas sirasinda tetiklenen karar olaylari. Ayni event sinifi normal eventler, zi
 | `mediaPursuitLevelOnTrigger` | Tetiklendiginde atanacak medya takibi seviyesi |
 | **Kadin Sureci** | |
 | `isWomanProcessEvent` | true ise bu event kadin sureci havuzlarinda kullanilir. Choice'larda womanObsessionModifier alani gorunur. |
+| `blockedWomanProcessEvents` | Bu event tetiklenince listedeki eventler havuzdan ve zincirlerden cikarilir. Head ise zinciri hic baslamaz, dal ise agirligi digerlerine kayar. |
 
 #### ChainRole Enum
 
@@ -290,6 +291,7 @@ Event icindeki tek bir secenek. Serializable sinif.
 | `mediaPursuitLevelDelta` | Relative modda: seviye degisimi (orn. +1 = 1 tik artir, -1 = 1 tik azalt) |
 | **Kadin Sureci** | |
 | `startsWomanProcess` | Secildiginde kadin surecini baslatir (oyun boyunca tek sefer, sadece savas icinde calisir) |
+| `endsWomanProcess` | Secildiginde kadin surecini aninda bitirir (obsesyon degeri ne olursa olsun) |
 | `womanObsessionModifier` | Kadin sureci stat degisimi (+ = obsesyon artar, - = azalir). Sadece isWomanProcessEvent acikken Inspector'da gorunur. |
 | **Kalici Stat Carpanlari** (foldout) | |
 | `permanentMultipliers` | Liste: birden fazla stat icin kalici carpan tanimlanabilir. Her entry: `stat` (StatType) + `multiplier` (float). Ornek: 1.1 = %10 artis. Carpisimsal birikir. Tum oyun boyunca, tum kaynaklardan gecerlidir. |
@@ -1065,6 +1067,17 @@ Savas sirasinda bir chain choice'u ile tetiklenen, oyuncunun obsesyon stat'ini y
 - **Savas disinda**: `RandomEventManager.OnEventTriggered` dinlenir, her random event tetiklemesinde sayac artar
 - Sayac kademenin `frequency` degerine ulasinca kadin eventi tetiklenir
 
+### Event Yasaklama (Dismissed)
+
+Kadin sureci eventleri `blockedWomanProcessEvents` listesi tasiyabilir. Bir event tetiklendiginde:
+1. Listedeki eventler `dismissedWomanEvents` set'ine eklenir
+2. Havuz seciminde dismissed eventler filtrelenir (pool'dan cikarilir)
+3. Zincir dallanmasinda dismissed event'in agirligi 0 olur, diger dallara kayar
+4. Dismissed bir Head event pool'dan secilemez → o zincir hic baslamaz
+5. Tum dallar dismissed ise zincir biter, tier havuzundan devam edilir
+
+Inspector'da `Kadin Sureci Eventi` tiklenince altta `Yasaklanan Eventler` listesi gorunur.
+
 ### Event Cozumleme
 
 Kadin eventleri `WarForOilEvent` altyapisini kullanir ama WomanProcessManager kendi cozumler:
@@ -1106,10 +1119,11 @@ Kadin eventleri `WarForOilEvent` altyapisini kullanir ama WomanProcessManager ke
 
 **Event olusturma:**
 1. `Kadin Sureci Eventi` tiklanir → event kadin sureci havuzuna eklenebilir
-2. Choice'larda Modifiers foldout'unda `Kadin Obsesyonu` alani gorunur
+2. Altinda `Yasaklanan Eventler` listesi gorunur — bu event tetiklenince listedeki eventler havuzdan/zincirlerden cikarilir
+3. Choice'larda Modifiers foldout'unda `Kadin Obsesyonu` alani gorunur
 
-**Sureci baslatma:**
-1. Herhangi bir savas eventinin choice'unda `Diger Sonuclar` → `Kadin Surecini Baslat` tiklanir
+**Sureci baslatma/bitirme:**
+1. Herhangi bir savas eventinin choice'unda `Diger Sonuclar` → `Kadin Sureci` → `Baslat` veya `Bitir` butonlarindan biri tiklanir (ayni anda ikisi secilemez)
 
 ### Eventler (UI Dinleyecek)
 
