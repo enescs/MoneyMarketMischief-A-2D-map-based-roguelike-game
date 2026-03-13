@@ -41,6 +41,8 @@ public class WarForOilEvent : ScriptableObject
 
     [Header("Kadın Süreci")]
     public bool isWomanProcessEvent; //true ise bu event kadın süreci havuzlarında kullanılır
+    public float minObsession = 0f; //bu event sadece obsesyon bu değerin üstündeyken gelir (0 = sınırsız)
+    public float maxObsession = 100f; //bu event sadece obsesyon bu değerin altındayken gelir (100 = sınırsız)
     public List<WarForOilEvent> blockedWomanProcessEvents; //bu event tetiklenince havuzdan/zincirlerden çıkarılacak eventler
 
     [Header("Zincir Ayarları")]

@@ -66,4 +66,30 @@ public class WomanProcessDatabase : ScriptableObject
             default: return tier3Frequency;
         }
     }
+
+    /// <summary>
+    /// Kademenin obsesyon aralığını döner (min, max).
+    /// </summary>
+    public void GetTierRange(int tier, out float tierMin, out float tierMax)
+    {
+        switch (tier)
+        {
+            case 1:
+                tierMin = 0f;
+                tierMax = tier1Max;
+                break;
+            case 2:
+                tierMin = tier1Max;
+                tierMax = tier2Max;
+                break;
+            case 3:
+                tierMin = tier2Max;
+                tierMax = 100f;
+                break;
+            default:
+                tierMin = 0f;
+                tierMax = 100f;
+                break;
+        }
+    }
 }

@@ -30,8 +30,9 @@ public class WarForOilEventEditor : Editor
             "hasNarrative", "narrative",
             "isVandalismEvent", "vandalismLevelOnTrigger", "startsVandalism", "forcesVandalismStart",
             "isMediaPursuitEvent", "mediaPursuitLevelOnTrigger",
-            "isWomanProcessEvent", "blockedWomanProcessEvents",
-            "chainRole", "blocksSubChainBranching", "alsoBlockedBranchEvents");
+            "isWomanProcessEvent", "minObsession", "maxObsession", "blockedWomanProcessEvents",
+            "chainRole", "blocksSubChainBranching", "alsoBlockedBranchEvents",
+            "minWarTime", "maxWarTime");
 
         //isRepeatable açıksa tekrar seçeneklerini göster
         SerializedProperty isRepeatable = serializedObject.FindProperty("isRepeatable");
@@ -56,6 +57,16 @@ public class WarForOilEventEditor : Editor
         EditorGUILayout.PropertyField(serializedObject.FindProperty("defaultChoiceIndex"));
 
         EditorGUILayout.Space();
+
+        //min/maxWarTime — kadın süreci eventlerinde gizle (savaş zamanlamasıyla ilgisi yok)
+        if (!serializedObject.FindProperty("isWomanProcessEvent").boolValue)
+        {
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("minWarTime"),
+                new GUIContent("Min War Time"));
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("maxWarTime"),
+                new GUIContent("Max War Time"));
+            EditorGUILayout.Space();
+        }
 
         //narrative — tiklenince büyük metin penceresi açılır
         SerializedProperty hasNarrative = serializedObject.FindProperty("hasNarrative");
@@ -136,11 +147,26 @@ public class WarForOilEventEditor : Editor
         if (isWomanProcessEvent.boolValue)
         {
             EditorGUI.indentLevel++;
+
+            //obsesyon aralığı
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.PrefixLabel("Obsesyon Aralığı");
+            SerializedProperty minObs = serializedObject.FindProperty("minObsession");
+            SerializedProperty maxObs = serializedObject.FindProperty("maxObsession");
+            float minVal = minObs.floatValue;
+            float maxVal = maxObs.floatValue;
+            minVal = EditorGUILayout.FloatField(minVal, GUILayout.Width(40));
+            EditorGUILayout.MinMaxSlider(ref minVal, ref maxVal, 0f, 100f);
+            maxVal = EditorGUILayout.FloatField(maxVal, GUILayout.Width(40));
+            minObs.floatValue = Mathf.Round(minVal);
+            maxObs.floatValue = Mathf.Round(maxVal);
+            EditorGUILayout.EndHorizontal();
+
             EditorGUILayout.PropertyField(
                 serializedObject.FindProperty("blockedWomanProcessEvents"),
                 new GUIContent("Yasaklanan Eventler"), true);
             EditorGUILayout.HelpBox(
-                "Bu event tetiklenince listedeki eventler havuzdan ve zincirlerden çıkarılır. Head ise zinciri hiç başlamaz, dal ise ağırlığı diğerlerine kayar.",
+                "Obsesyon aralığı: Event sadece obsesyon bu aralıktayken havuzdan seçilebilir (0-100 = sınırsız).\nYasaklanan eventler: Bu event tetiklenince listedeki eventler havuzdan ve zincirlerden çıkarılır.",
                 MessageType.Info);
             EditorGUI.indentLevel--;
         }

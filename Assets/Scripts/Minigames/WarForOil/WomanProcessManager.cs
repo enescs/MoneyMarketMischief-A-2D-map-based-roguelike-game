@@ -418,7 +418,9 @@ public class WomanProcessManager : MonoBehaviour
         int tier = database.GetTier(womanObsession);
         List<WarForOilEvent> pool = database.GetTierEvents(tier);
         if (pool == null || pool.Count == 0) return null;
-        return PickEventFromPool(pool);
+
+        database.GetTierRange(tier, out float tierMin, out float tierMax);
+        return PickEventFromPool(pool, tierMin, tierMax);
     }
 
     /// <summary>
@@ -516,9 +518,11 @@ public class WomanProcessManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Havuzdan uygun bir event seçer (tekrar kontrolü ile).
+    /// Havuzdan uygun bir event seçer (tekrar kontrolü + obsesyon aralığı kesişimi ile).
+    /// Eventin özel aralığı tier aralığıyla kesiştirilir — daraltabilir ama genişletemez.
+    /// Kesişim yoksa eventin özel aralığı geçersiz sayılır, tier aralığı olduğu gibi kullanılır.
     /// </summary>
-    private WarForOilEvent PickEventFromPool(List<WarForOilEvent> pool)
+    private WarForOilEvent PickEventFromPool(List<WarForOilEvent> pool, float tierMin, float tierMax)
     {
         List<WarForOilEvent> eligible = new List<WarForOilEvent>();
 
@@ -529,6 +533,24 @@ public class WomanProcessManager : MonoBehaviour
 
             //yasaklanmış mı
             if (dismissedWomanEvents.Contains(evt)) continue;
+
+            //obsesyon aralığı kontrolü — tier ile kesişim
+            float effectiveMin = tierMin;
+            float effectiveMax = tierMax;
+
+            //eventin özel aralığı tier ile kesişiyor mu
+            float intersectMin = Mathf.Max(evt.minObsession, tierMin);
+            float intersectMax = Mathf.Min(evt.maxObsession, tierMax);
+
+            if (intersectMin <= intersectMax)
+            {
+                //kesişim var — daraltılmış aralık kullan
+                effectiveMin = intersectMin;
+                effectiveMax = intersectMax;
+            }
+            //kesişim yoksa effectiveMin/Max tier aralığı olarak kalır (özel aralık geçersiz)
+
+            if (womanObsession < effectiveMin || womanObsession > effectiveMax) continue;
 
             //tekrar kontrolü
             if (!evt.isRepeatable)

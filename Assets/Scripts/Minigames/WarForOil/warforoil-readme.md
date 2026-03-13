@@ -208,6 +208,7 @@ Savas sirasinda tetiklenen karar olaylari. Ayni event sinifi normal eventler, zi
 | `mediaPursuitLevelOnTrigger` | Tetiklendiginde atanacak medya takibi seviyesi |
 | **Kadin Sureci** | |
 | `isWomanProcessEvent` | true ise bu event kadin sureci havuzlarinda kullanilir. Choice'larda womanObsessionModifier alani gorunur. |
+| `minObsession` / `maxObsession` | Eventin havuzdan secilebilecegi obsesyon araligi. Tier araligini daraltabilir ama genisletemez (kesisim alinir). Kesisim yoksa ozel aralik gecersiz sayilir, tier araligi kullanilir. Sadece havuzdan rastgele secimde gecerli — zincir dallanmasi eventlerinde bu filtre uygulanmaz. |
 | `blockedWomanProcessEvents` | Bu event tetiklenince listedeki eventler havuzdan ve zincirlerden cikarilir. Head ise zinciri hic baslamaz, dal ise agirligi digerlerine kayar. |
 
 #### ChainRole Enum
