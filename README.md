@@ -1,181 +1,173 @@
 # Project M.M.M.
 
-Project M.M.M., oyuncunun finans, medya, siyaset ve güç ilişkilerinin kesiştiği karmaşık bir dünyada yükselmeye çalıştığı gerçek zamanlı bir strateji ve simülasyon oyunudur.
+Project M.M.M. is a real-time strategy and simulation game where the player attempts to rise in a complex world at the intersection of finance, media, politics, and power dynamics.
 
-Bu oyunda şehirler kurmazsınız.
-Ordular yönetmezsiniz.
+In this game, you don't build cities.
+You don't command armies.
 
-**Bunun yerine güç ağları kurarsınız.**
+**Instead, you build networks of power.**
 
-Oyuncu küçük ölçekli fırsatlarla başladığı yolculukta; finansal hamleler, kurumsal bağlantılar, medya etkisi ve stratejik kararlar aracılığıyla giderek daha büyük bir güç elde etmeye çalışır.
+Starting from small-scale opportunities, the player strives to gain increasingly greater power through financial maneuvers, institutional connections, media influence, and strategic decisions.
 
-Ancak her kazanç yeni bir risk doğurur.
-Her hamle yeni bir şüphe yaratır.
+But every gain brings a new risk.
+Every move creates new suspicion.
 
-Oyuncu sürekli olarak servet, şüphe ve itibar arasındaki hassas dengeyi yönetmek zorundadır.
-
----
-
-## Oyunun Temel Fikri
-
-Project M.M.M., klasik strateji oyunlarından farklı olarak gücün görünmeyen tarafını simüle eder.
-
-Oyuncu doğrudan sahnede olan bir lider değil, perde arkasında hareket eden bir aktördür.
-
-Amaç sadece para kazanmak değildir.
-
-Oyuncu zamanla:
-
-- ekonomik sistemleri etkileyebilir
-- şirketler ve yatırımlar üzerinden güç kazanabilir
-- medya algısını yönlendirebilir
-- siyasi ve toplumsal süreçleri manipüle edebilir
-
-Oyunun temel deneyimi, risk ve fırsat arasında sürekli karar vermeye dayalıdır.
-
-Her hamle yeni kapılar açabilir veya oyuncuyu geri dönüşü zor krizlerin içine sürükleyebilir.
+The player must constantly manage the delicate balance between wealth, suspicion, and reputation.
 
 ---
 
-## Temel Oyun Statları
+## Core Concept
 
-Oyun üç ana gösterge etrafında şekillenir.
+Unlike traditional strategy games, Project M.M.M. simulates the invisible side of power.
 
-### Servet
+The player is not a leader in the spotlight, but an actor operating behind the scenes.
 
-Oyuncunun ekonomik gücünü temsil eder.
+The goal is not simply to make money.
 
-Servet;
-- operasyonlar yürütmek
-- yeni fırsatlar açmak
-- yatırımlar yapmak
-- güç ağlarını genişletmek
+Over time, the player can:
 
-için kullanılır.
+- influence economic systems
+- gain power through companies and investments
+- shape media perception
+- manipulate political and social processes
 
-Oyuncu servetini sadece finansal piyasalar üzerinden değil, farklı ekonomik alanlardan da elde edebilir. Örneğin finansal manipülasyonlar, maden yatırımları, gayrimenkul fırsatları gibi alanlar oyuncuya farklı stratejik yollar sunar.
+The core experience revolves around constantly making decisions between risk and opportunity.
 
-### Şüphe
-
-Şüphe, oyuncunun faaliyetlerinin ne kadar dikkat çektiğini gösterir.
-
-Şüphe yükseldikçe oyuncunun yaptığı her hamle daha riskli hale gelir. Belirli seviyelerin üzerinde:
-
-- soruşturmalar başlayabilir
-- operasyonlar başarısız olabilir
-- oyuncu ciddi yaptırımlarla karşılaşabilir
-
-Bu nedenle hızlı büyüme her zaman güvenli değildir.
-
-### İtibar
-
-İtibar, oyuncunun sistem içindeki algısını temsil eder. Bu; kamuoyu, kurumlar ve güç çevreleri tarafından nasıl görüldüğünüzü belirler.
-
-Yüksek itibar:
-
-- bazı fırsatların açılmasını sağlar
-- güçlü bağlantılar kurmayı kolaylaştırır
-- riskli hamlelerin etkisini azaltabilir
-
-Ancak bazı kararlar kısa vadeli kazanç sağlarken itibarınızı ciddi şekilde zedeleyebilir.
+Every move can open new doors or drag the player into crises that are difficult to recover from.
 
 ---
 
-## Rastgele Olay Sistemi
+## Core Game Stats
 
-Project M.M.M.'da dünya statik değildir.
+The game revolves around three main indicators.
 
-Oyun boyunca oyuncunun karşısına rastgele ortaya çıkan olaylar çıkar. Bu olaylar:
+### Wealth
 
-- ekonomik fırsatlar
-- siyasi krizler
-- medya skandalları
-- beklenmedik yatırım fırsatları
-- uluslararası gelişmeler
+Represents the player's economic power.
 
-gibi çok farklı durumlar olabilir.
+Wealth is used to:
+- conduct operations
+- unlock new opportunities
+- make investments
+- expand power networks
 
-Oyuncunun bu olaylara verdiği kararlar oyunun gidişatını ciddi şekilde değiştirebilir.
+The player can acquire wealth not only through financial markets but also from various economic domains. For example, financial manipulations, mining investments, and real estate opportunities offer the player different strategic paths.
 
-Bazı kararlar yeni fırsatların kapısını açarken, bazıları uzun event zincirlerine dönüşebilir ve oyuncunun kaderini belirleyebilir.
+### Suspicion
 
----
+Suspicion indicates how much attention the player's activities are attracting.
 
-## Minigame Sistemi
+As suspicion rises, every move becomes riskier. Above certain thresholds:
 
-Oyunun bazı kritik anlarında oyuncu minigame mekanikleri ile karşılaşır. Bu minigame'ler;
+- investigations may be launched
+- operations may fail
+- the player may face severe consequences
 
-- finansal operasyonlar
-- riskli girişimler
-- stratejik müdahaleler
+Therefore, rapid growth is not always safe.
 
-gibi süreçleri temsil eder.
+### Reputation
 
-Minigame sonuçları sadece kısa vadeli etkiler yaratmaz. Bazı durumlarda minigame sonuçları oyunun kaderini belirleyen zincirleri tetikleyebilir.
+Reputation represents the player's perception within the system. It determines how the public, institutions, and power circles view you.
 
----
+High reputation:
 
-## Sosyal Medya Sistemi
+- unlocks certain opportunities
+- makes it easier to establish powerful connections
+- can reduce the impact of risky moves
 
-Oyunda oyuncunun takip edebildiği dinamik bir sosyal medya akışı (feed) bulunur.
-
-Bu feed;
-- gündemdeki olayları
-- ekonomik gelişmeleri
-- kamuoyu tepkilerini
-- oyuncunun eylemlerinin yansımalarını
-
-gösterir.
-
-Ancak oyuncu sadece izleyen değildir.
-
-Oyuncu bu sosyal medya akışını doğrudan manipüle edebilir. Algı operasyonları, propaganda veya bilgi yönlendirmesi gibi hamlelerle sosyal medya akışını değiştirebilir ve bunun sonuçlarını oyun dünyasında gözlemleyebilir.
+However, some decisions may provide short-term gains while seriously damaging your reputation.
 
 ---
 
-## Procedural Dünya
+## Random Event System
 
-Project M.M.M.'da her oyun farklı bir dünyada başlar.
+In Project M.M.M., the world is not static.
 
-Her yeni oyunda harita yeniden oluşturulur. Bununla birlikte:
+Throughout the game, the player encounters randomly occurring events. These events can include:
 
-- bölgelerin dağılımı
-- ekonomik yapılar
-- yeraltı kaynakları
-- şehirleşme oranı
+- economic opportunities
+- political crises
+- media scandals
+- unexpected investment opportunities
+- international developments
 
-da yeniden belirlenir.
+The player's decisions in response to these events can significantly alter the course of the game.
 
-Örneğin bir oyunda ülke yüksek şehirleşmeye sahip ancak doğal kaynak bakımından zayıf olabilir. Başka bir oyunda ise geniş doğal kaynaklara sahip ancak ekonomik olarak geri kalmış bir yapı oluşabilir.
-
-Bu sistem her oyunda oyuncunun farklı stratejiler geliştirmesini zorunlu kılar.
-
----
-
-## Dinamik Skill Ağı
-
-Oyuncunun ilerleme sistemi skill ağı üzerinden gerçekleşir.
-
-Ancak bu sistem statik değildir. Oyuncunun oyun sırasında hangi alanlara yöneldiği, hangi kararları aldığı ve hangi yolları izlediği skill ağının gelişimini etkiler.
-
-Oyuncu belirli alt alanlarda deneyim kazandıkça:
-
-- daha önce görünmeyen yeni skill pathleri açılabilir
-- farklı stratejik yollar ortaya çıkabilir
-
-Bu sayede her oyun deneyimi oyuncunun yaptığı tercihlere göre şekillenir.
+While some decisions open doors to new opportunities, others can evolve into long event chains that determine the player's fate.
 
 ---
 
-## Çoklu Bitiş Senaryoları
+## Minigame System
 
-Project M.M.M. tek bir sonu olan bir oyun değildir. Oyunun sonu farklı şekillerde oluşabilir.
+At certain critical moments, the player encounters minigame mechanics. These minigames represent processes such as:
 
-Bir oyun şu yollarla sona ulaşabilir:
+- financial operations
+- risky ventures
+- strategic interventions
 
-- bir event zincirinin sonucu
-- kritik bir minigame sonucunun etkisi
-- skill ağında ulaşılan belirli bir ilerleme noktası
-- oyuncunun aldığı büyük ölçekli stratejik kararlar
+Minigame outcomes don't just create short-term effects. In some cases, minigame results can trigger chains that determine the fate of the game.
 
-Bu sistem sayesinde her oyun farklı bir hikâye ve farklı bir sonuç üretebilir.
+---
+
+## Social Media System
+
+The game features a dynamic social media feed that the player can monitor.
+
+This feed displays:
+- trending events
+- economic developments
+- public reactions
+- reflections of the player's actions
+
+But the player is not just an observer.
+
+The player can directly manipulate this social media feed. Through perception operations, propaganda, or information manipulation, the player can alter the feed and observe the consequences in the game world.
+
+---
+
+## Procedural World
+
+In Project M.M.M., every game begins in a different world.
+
+With each new game, the map is regenerated. Along with it:
+
+- regional distribution
+- economic structures
+- underground resources
+- urbanization rates
+
+are all redetermined.
+
+For example, in one game the country might have high urbanization but be weak in natural resources. In another, it might have vast natural resources but an economically underdeveloped structure.
+
+This system forces the player to develop different strategies in every game.
+
+---
+
+## Dynamic Skill Tree
+
+The player's progression system operates through a skill tree.
+
+However, this system is not static. The areas the player focuses on, the decisions they make, and the paths they follow during the game affect the development of the skill tree.
+
+As the player gains experience in specific sub-areas:
+
+- previously hidden skill paths may unlock
+- different strategic routes may emerge
+
+This ensures that every gameplay experience is shaped by the player's choices.
+
+---
+
+## Multiple Ending Scenarios
+
+Project M.M.M. is not a game with a single ending. The game can conclude in different ways.
+
+A game can reach its end through:
+
+- the outcome of an event chain
+- the impact of a critical minigame result
+- a specific progression point reached in the skill tree
+- large-scale strategic decisions made by the player
+
+This system allows every game to produce a different story and a different outcome.
