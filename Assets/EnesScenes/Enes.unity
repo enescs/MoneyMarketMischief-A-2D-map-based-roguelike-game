@@ -10208,6 +10208,7 @@ MonoBehaviour:
   researchIcon: {fileID: 0}
   pumpIcon: {fileID: 5648747525888280027, guid: 282999ac7fbedd448939ed71c8110d39, type: 3}
   cancelIcon: {fileID: 0}
+  undergroundIcon: {fileID: 0}
   panelColor: {r: 0.12, g: 0.12, b: 0.14, a: 0.92}
   btnNormal: {r: 0.22, g: 0.22, b: 0.26, a: 1}
   btnHigh: {r: 0.32, g: 0.32, b: 0.38, a: 1}
@@ -10224,6 +10225,10 @@ MonoBehaviour:
   actionBottom: 60
   actionGap: 16
   actionFont: 14
+  viewToggleBg: {r: 0.22, g: 0.18, b: 0.12, a: 0.85}
+  viewToggleActiveBg: {r: 0.45, g: 0.34, b: 0.18, a: 0.9}
+  viewToggleSize: 72
+  viewToggleMargin: 16
 --- !u!114 &1710072565
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10248,8 +10253,6 @@ MonoBehaviour:
   circleColor: {r: 1, g: 1, b: 0, a: 0.8}
   circleWidth: 0.03
   circleSegments: 64
-  researchRevealColor: {r: 0, g: 0, b: 0, a: 1}
-  pixelsPerUnit: 100
   pumpPlacementCost: 200
   baseIncomePerSecond: 10
   offBedTrickle: 0.02
@@ -10258,7 +10261,7 @@ MonoBehaviour:
   pumpSpriteZ: -0.6
   pumpScale: 1
   debugRevealBeds: 1
-  debugRevealColor: {r: 0.15, g: 0.85, b: 0.3, a: 0.45}
+  pixelsPerUnit: 100
 --- !u!114 &1710072566
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10273,11 +10276,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PetroleumBedGenerator
   mapGenerator: {fileID: 1710072556}
   minBeds: 3
-  maxBeds: 8
-  minBedRadius: 12
-  maxBedRadius: 35
-  noiseScale: 0.06
-  noiseThreshold: 0.4
+  maxBeds: 6
+  minBedRadius: 18
+  maxBedRadius: 66
+  noiseScale: 0.0742
+  noiseThreshold: 0.433
   minBasePurity: 0.2
   maxBasePurity: 0.85
   purityEdgeFalloff: 0.6
