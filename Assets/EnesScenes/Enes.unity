@@ -379,6 +379,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 5718375045061896029, guid: 0db640ce4dba7f84288299145cda16db, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1710072567}
+    - targetCorrespondingSourceObject: {fileID: 5718375045061896029, guid: 0db640ce4dba7f84288299145cda16db, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1710072569}
   m_SourcePrefab: {fileID: 100100000, guid: 0db640ce4dba7f84288299145cda16db, type: 3}
 --- !u!1001 &102576865
 PrefabInstance:
@@ -10180,15 +10183,15 @@ MonoBehaviour:
   cityRegionBorderBuffer: 11
   citySnapRotation: 0
   overlapRadius: 0.3
-  roadNeighbourConnections: 3
-  roadConnectionBias: 1
-  roadConnectionMaxSteps: 500
+  roadNeighbourConnections: 1
+  roadConnectionBias: 0
+  roadConnectionMaxSteps: 50
   roadBranchCount: 0
-  roadBranchBias: 0.968
-  roadBranchMaxSteps: 416
+  roadBranchBias: 0
+  roadBranchMaxSteps: 50
   roadBranchMinDistance: 74
   roadThickness: 1
-  roadRegionBorderBuffer: 5
+  roadRegionBorderBuffer: 0
   roadColor: {r: 0.3, g: 0.28, b: 0.25, a: 1}
 --- !u!114 &1710072564
 MonoBehaviour:
@@ -10260,7 +10263,7 @@ MonoBehaviour:
   pumpSprite: {fileID: 5648747525888280027, guid: 282999ac7fbedd448939ed71c8110d39, type: 3}
   pumpSpriteZ: -0.6
   pumpScale: 1
-  debugRevealBeds: 1
+  debugRevealBeds: 0
   pixelsPerUnit: 100
 --- !u!114 &1710072566
 MonoBehaviour:
@@ -10299,6 +10302,27 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CountryData
   mapGenerator: {fileID: 1710072556}
+--- !u!114 &1710072569
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 744350989}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d1f440535ec96cd468d4fa0756d05d64, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UndergroundMapManager
+  mapGenerator: {fileID: 1710072556}
+  mapPainter: {fileID: 1710072559}
+  undiscoveredDark: {r: 0.18, g: 0.12, b: 0.07, a: 1}
+  undiscoveredLight: {r: 0.26, g: 0.18, b: 0.1, a: 1}
+  discoveredDark: {r: 0.45, g: 0.34, b: 0.2, a: 1}
+  discoveredLight: {r: 0.58, g: 0.45, b: 0.28, a: 1}
+  petroleumColor: {r: 0.02, g: 0.02, b: 0.02, a: 1}
+  undergroundWater: {r: 0.06, g: 0.08, b: 0.14, a: 1}
+  undergroundNoiseScale: 0.04
 --- !u!1 &1711406226
 GameObject:
   m_ObjectHideFlags: 0
@@ -12237,7 +12261,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7258465140580761787, guid: 384b4bb300e251d42a643bba49396562, type: 3}
       propertyPath: startingWealth
-      value: 1e+11
+      value: 100000
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

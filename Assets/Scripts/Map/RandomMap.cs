@@ -38,6 +38,9 @@ public class MapGenerator : MonoBehaviour
     public float fogStart = 0.8f;
     [Range(0f, 1f)]
     public float cornerRadius = 0.5f;
+    [Tooltip("Higher = sharper fog edge. 1 = original soft gradient, 3+ = crisp boundary, 6+ = hard cutoff.")]
+    [Range(1f, 10f)]
+    public float fogSharpness = 1f;
 
     [Header("Colors")]
     public Color waterColor = new Color(0.1f, 0.3f, 0.8f);
@@ -317,7 +320,15 @@ public class MapGenerator : MonoBehaviour
                 if (dist > fogThreshold)
                 {
                     float t = Mathf.Clamp01((dist - fogThreshold) / (1f - fogThreshold));
-                    fogMap[x, y] = Mathf.Clamp01(t * t * (3f - 2f * t));
+                    float smoothed = t * t * (3f - 2f * t);
+
+                    // Apply sharpness: raise to a power so the transition snaps harder.
+                    // fogSharpness=1 → original soft gradient
+                    // fogSharpness=3+ → crisp edge
+                    // fogSharpness=6+ → near hard cutoff
+                    float sharpened = Mathf.Pow(smoothed, 1f / fogSharpness);
+
+                    fogMap[x, y] = Mathf.Clamp01(sharpened);
                 }
                 else
                 {
@@ -391,10 +402,10 @@ public class MapGenerator : MonoBehaviour
             {
                 if (!landMap[x, y]) { biomeMap[x, y] = 0; continue; }
 
-                float nx      = (Mathf.PerlinNoise(x * warpScale + noiseOffset, y * warpScale) - 0.5f) * warpStrength;
-                float ny      = (Mathf.PerlinNoise(y * warpScale, x * warpScale + noiseOffset) - 0.5f) * warpStrength;
-                float warpedX = x + nx;
-                float warpedY = y + ny;
+                float wnx     = (Mathf.PerlinNoise(x * warpScale + noiseOffset, y * warpScale) - 0.5f) * warpStrength;
+                float wny     = (Mathf.PerlinNoise(y * warpScale, x * warpScale + noiseOffset) - 0.5f) * warpStrength;
+                float warpedX = x + wnx;
+                float warpedY = y + wny;
 
                 float minDist     = float.MaxValue;
                 int nearestBiome  = 1;

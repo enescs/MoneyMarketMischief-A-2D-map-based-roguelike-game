@@ -28,6 +28,14 @@ public class UndergroundMapManager : MonoBehaviour
     [Header("Noise")]
     [Range(0.01f, 0.1f)] public float undergroundNoiseScale = 0.04f;
 
+    [Header("Discovery Blend")]
+    [Tooltip("What fraction of the circle radius is solid discovered (no blend). Rest fades out.")]
+    [Range(0.3f, 0.95f)] public float blendSolidCore = 0.7f;
+
+    [Header("Fog")]
+    [Tooltip("Fog color for the underground view edges.")]
+    public Color undergroundFogColor = new Color(0.12f, 0.10f, 0.08f);
+
     public enum ViewMode { Surface, Underground }
     public ViewMode CurrentView => currentView;
 
@@ -50,10 +58,6 @@ public class UndergroundMapManager : MonoBehaviour
 
     void OnEnable()
     {
-        // Subscribe after MapPainter finishes painting (which fires OnMapGenerated
-        // indirectly through MapPainter.Paint → decorPlacer). We listen to the
-        // petroleum generator event because it fires after CountryData which fires
-        // after MapPainter.
         PetroleumBedGenerator.OnPetroleumGenerated += OnReady;
     }
 
@@ -70,13 +74,11 @@ public class UndergroundMapManager : MonoBehaviour
         discoveredMap = new bool[mapW, mapH];
         noiseSeed = UnityEngine.Random.Range(0f, 9999f);
 
-        // Cache the surface sprite that MapPainter already created
         if (mapPainter.mapRenderer != null && mapPainter.mapRenderer.sprite != null)
             surfaceSprite = mapPainter.mapRenderer.sprite;
 
         BuildUndergroundTexture();
         ready = true;
-        // Start in surface view
         currentView = ViewMode.Surface;
     }
 
@@ -96,22 +98,13 @@ public class UndergroundMapManager : MonoBehaviour
             {
                 Color c;
                 if (!mapGenerator.IsLand(x, y))
-                {
                     c = undergroundWater;
-                }
                 else
-                {
-                    // Undiscovered land — dark brown with noise variation
                     c = GetUndergroundLandColor(x, y, false, false);
-                }
 
-                // Apply fog same as surface
                 float fog = mapGenerator.GetFog(x, y);
                 if (fog > 0f)
-                {
-                    Color fogC = new Color(0.12f, 0.10f, 0.08f); // dark fog for underground
-                    c = Color.Lerp(c, fogC, fog);
-                }
+                    c = Color.Lerp(c, undergroundFogColor, fog);
 
                 pixels[x + y * mapW] = c;
             }
@@ -132,7 +125,6 @@ public class UndergroundMapManager : MonoBehaviour
         if (hasPetroleum && discovered)
             return petroleumColor;
 
-        // Multi-octave noise for natural variation
         float n1 = Mathf.PerlinNoise(x * undergroundNoiseScale + noiseSeed,
                                       y * undergroundNoiseScale + noiseSeed);
         float n2 = Mathf.PerlinNoise(x * undergroundNoiseScale * 2.5f + noiseSeed + 500f,
@@ -148,48 +140,65 @@ public class UndergroundMapManager : MonoBehaviour
     // === DISCOVERY ===
 
     /// <summary>
-    /// Marks tiles in a circle as discovered and refreshes the underground texture.
-    /// Called by PetroleumSystem after a research scan completes.
+    /// Stores the highest blend value per tile (0 = undiscovered, 1 = fully discovered).
+    /// Persists across multiple reveals so overlapping circles look correct.
     /// </summary>
+    private float[,] blendMap;
+
     public void RevealCircle(Vector2Int center, int radius)
     {
         if (!ready) return;
+        if (blendMap == null) blendMap = new float[mapW, mapH];
 
         var bedGen = PetroleumBedGenerator.Instance;
-        bool anyChanged = false;
 
+        // Scan the circle. For each land tile compute a blend value:
+        // - Inside the solid core: blend = 1 (fully discovered color)
+        // - Between core and edge: linear fade from 1 to 0
         for (int dx = -radius; dx <= radius; dx++)
         for (int dy = -radius; dy <= radius; dy++)
         {
-            if (dx * dx + dy * dy > radius * radius) continue;
+            float distSq = dx * dx + dy * dy;
+            if (distSq > radius * radius) continue;
+
             int px = center.x + dx, py = center.y + dy;
             if (px < 0 || px >= mapW || py < 0 || py >= mapH) continue;
             if (!mapGenerator.IsLand(px, py)) continue;
-            if (discoveredMap[px, py]) continue;
 
-            discoveredMap[px, py] = true;
-            anyChanged = true;
+            float dist = Mathf.Sqrt(distSq);
+            float normDist = dist / radius; // 0 at center, 1 at edge
+
+            float t;
+            if (normDist <= blendSolidCore)
+                t = 1f; // fully discovered
+            else
+                t = 1f - ((normDist - blendSolidCore) / (1f - blendSolidCore)); // fade to 0
+
+            t = Mathf.Clamp01(t);
+
+            // Keep the highest blend value (so overlapping circles don't darken)
+            if (t <= blendMap[px, py]) continue;
+            blendMap[px, py] = t;
+
+            if (t >= 0.99f)
+                discoveredMap[px, py] = true;
 
             bool hasPetroleum = bedGen != null && bedGen.IsGenerated && bedGen.HasPetroleum(px, py);
-            Color c = GetUndergroundLandColor(px, py, true, hasPetroleum);
+
+            Color undiscovered = GetUndergroundLandColor(px, py, false, false);
+            Color discovered   = GetUndergroundLandColor(px, py, true, hasPetroleum);
+            Color c = Color.Lerp(undiscovered, discovered, t);
 
             float fog = mapGenerator.GetFog(px, py);
             if (fog > 0f)
-            {
-                Color fogC = new Color(0.12f, 0.10f, 0.08f);
-                c = Color.Lerp(c, fogC, fog);
-            }
+                c = Color.Lerp(c, undergroundFogColor, fog);
 
             undergroundTexture.SetPixel(px, py, c);
         }
 
-        if (anyChanged)
-            undergroundTexture.Apply();
+        undergroundTexture.Apply();
     }
 
-    /// <summary>
-    /// Check if a specific tile has been discovered.
-    /// </summary>
     public bool IsDiscovered(int x, int y)
     {
         if (!ready || x < 0 || x >= mapW || y < 0 || y >= mapH) return false;
@@ -211,31 +220,23 @@ public class UndergroundMapManager : MonoBehaviour
 
         bool isSurface = (mode == ViewMode.Surface);
 
-        // Swap map texture
         if (mapPainter.mapRenderer != null)
             mapPainter.mapRenderer.sprite = isSurface ? surfaceSprite : undergroundSprite;
 
-        // Toggle decor sprites (buildings, trees, etc.)
         var decorPlacer = mapPainter.GetComponent<MapDecorPlacer>();
         if (decorPlacer != null)
             decorPlacer.SetDecorVisible(isSurface);
 
-        // Toggle pump sprites
         if (PetroleumSystem.Instance != null)
             PetroleumSystem.Instance.SetPumpsVisible(isSurface);
 
         OnViewModeChanged?.Invoke(mode);
     }
 
-    /// <summary>
-    /// Re-cache the surface sprite if MapPainter repaints (e.g. after petroleum
-    /// research overlay on surface). Call this if surface texture changes externally.
-    /// </summary>
     public void RefreshSurfaceSprite()
     {
         if (mapPainter != null && mapPainter.mapRenderer != null && mapPainter.mapRenderer.sprite != null)
         {
-            // Only update if we're not currently showing underground
             if (currentView == ViewMode.Surface)
                 surfaceSprite = mapPainter.mapRenderer.sprite;
         }
@@ -243,7 +244,6 @@ public class UndergroundMapManager : MonoBehaviour
 
     // === DEBUG ===
 
-    /// <summary>Debug: reveal the entire map underground.</summary>
     public void DebugRevealAll()
     {
         if (!ready) return;
@@ -260,10 +260,7 @@ public class UndergroundMapManager : MonoBehaviour
 
             float fog = mapGenerator.GetFog(x, y);
             if (fog > 0f)
-            {
-                Color fogC = new Color(0.12f, 0.10f, 0.08f);
-                c = Color.Lerp(c, fogC, fog);
-            }
+                c = Color.Lerp(c, undergroundFogColor, fog);
 
             undergroundTexture.SetPixel(x, y, c);
         }
