@@ -31,6 +31,7 @@ public class WarForOilEventEditor : Editor
             "isVandalismEvent", "vandalismLevelOnTrigger", "startsVandalism", "forcesVandalismStart",
             "isMediaPursuitEvent", "mediaPursuitLevelOnTrigger",
             "isWomanProcessEvent", "minObsession", "maxObsession", "blockedWomanProcessEvents",
+            "useTypewriterEffect",
             "hasPrecursorEvent", "precursorEventType", "precursorWarEvent", "precursorRandomEvent",
             "chainRole", "blocksSubChainBranching", "alsoBlockedBranchEvents",
             "minWarTime", "maxWarTime");
@@ -166,6 +167,10 @@ public class WarForOilEventEditor : Editor
             EditorGUILayout.PropertyField(
                 serializedObject.FindProperty("blockedWomanProcessEvents"),
                 new GUIContent("Yasaklanan Eventler"), true);
+
+            EditorGUILayout.PropertyField(
+                serializedObject.FindProperty("useTypewriterEffect"),
+                new GUIContent("Yazı Makinesi Efekti", "Açıklama harf harf akar. Kapalıysa direkt paragraf gösterilir."));
 
             //öncü event
             EditorGUILayout.Space(4);
