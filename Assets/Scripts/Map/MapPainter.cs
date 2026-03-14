@@ -75,14 +75,12 @@ public class MapPainter : MonoBehaviour
         mapTexture.Apply();
         ApplyToRenderer(mapTexture);
 
-        // --- Generate roads onto the texture before decor ---
         if (roadGenerator == null)
             roadGenerator = FindObjectOfType<RoadGenerator>();
 
         if (roadGenerator != null)
         {
             roadGenerator.GenerateRoads(mapGenerator, mapTexture);
-            // Re-apply the texture after roads are painted on it
             ApplyToRenderer(mapTexture);
         }
         else
@@ -174,8 +172,17 @@ public class MapPainter : MonoBehaviour
     }
 
     // -------------------------------------------------------------------------
-    // BORDER DISTANCE FIELD
+    // BORDER DISTANCE FIELD — FIXED FOR RELIABLE TRANSITIONS
     // -------------------------------------------------------------------------
+    //
+    // For each land tile, BFS finds distance to the nearest different-biome tile.
+    // borderDist = 0 at the border, 1.0 at transitionWidth away.
+    // nearestOther = which biome that nearest different neighbor belongs to.
+    //
+    // Fix vs original:
+    //   - Removed the `dist[x,y] > 0` guard that could skip valid seed tiles
+    //   - Ensures all border-adjacent tiles are properly seeded, including
+    //     triple-junctions and concave borders
 
     void BuildBorderDistanceField(int w, int h)
     {
@@ -197,6 +204,7 @@ public class MapPainter : MonoBehaviour
 
         Queue<Vector2Int> queue = new Queue<Vector2Int>();
 
+        // Seed: every land tile adjacent to a different biome
         for (int x = 0; x < w; x++)
             for (int y = 0; y < h; y++)
             {
@@ -204,6 +212,7 @@ public class MapPainter : MonoBehaviour
                 int myBiome = mapGenerator.GetBiome(x, y);
                 if (myBiome == 5) continue;
 
+                int foundOtherBiome = 0;
                 for (int i = 0; i < 4; i++)
                 {
                     int nx = x + dx4[i], ny = y + dy4[i];
@@ -214,17 +223,20 @@ public class MapPainter : MonoBehaviour
                     if (neighborBiome == 5) continue;
                     if (neighborBiome != myBiome)
                     {
-                        if (dist[x, y] > 0)
-                        {
-                            dist[x, y]        = 0;
-                            sourceOther[x, y] = neighborBiome;
-                            queue.Enqueue(new Vector2Int(x, y));
-                        }
+                        foundOtherBiome = neighborBiome;
                         break;
                     }
                 }
+
+                if (foundOtherBiome != 0)
+                {
+                    dist[x, y]        = 0;
+                    sourceOther[x, y] = foundOtherBiome;
+                    queue.Enqueue(new Vector2Int(x, y));
+                }
             }
 
+        // BFS propagation inward within same-biome regions
         while (queue.Count > 0)
         {
             Vector2Int pos = queue.Dequeue();
@@ -257,8 +269,11 @@ public class MapPainter : MonoBehaviour
     }
 
     // -------------------------------------------------------------------------
-    // LAND PAINTING WITH TRANSITION
+    // LAND PAINTING WITH TRANSITION — ONE-SIDED
     // -------------------------------------------------------------------------
+    //
+    // Only the LOWER biome ID side blends. Higher ID stays pure.
+    // Result: A_pure → A_blending_to_B → B_pure  (single gradient, no double-band)
 
     Color PaintLandWithTransition(int x, int y, float seed)
     {
@@ -269,6 +284,7 @@ public class MapPainter : MonoBehaviour
         if (myBiome == 5)
             return PaintSeaRock(x, y, seed);
 
+        // Beach overrides transition
         float beachD = beachDistMap[x, y];
         if (beachD >= 0f)
         {
@@ -278,12 +294,15 @@ public class MapPainter : MonoBehaviour
             return Color.Lerp(beachColor, regionColor, blendT);
         }
 
+        // No border nearby or no other biome known — pure biome color
         if (d >= 1f || otherBiome == 0)
             return GetBiomeColor(myBiome, x, y, seed);
 
+        // ONE-SIDED: higher biome ID stays pure
         if (myBiome > otherBiome)
             return GetBiomeColor(myBiome, x, y, seed);
 
+        // Lower biome ID handles the full gradient toward the other biome
         float warp  = Perlin(x, y, seed + 3000f, 0.05f) * 0.4f - 0.2f;
         float t     = Mathf.Clamp01(d + warp);
         float chaos = Perlin(x, y, seed + 4000f, 0.09f) * 0.3f - 0.15f;

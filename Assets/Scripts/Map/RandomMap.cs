@@ -43,6 +43,9 @@ public class MapGenerator : MonoBehaviour
     [Tooltip("How far from the island center rocks can spawn (as fraction of half-map).")]
     [Range(0.4f, 0.9f)]
     public float seaRockSpread = 0.7f;
+    [Tooltip("Minimum distance in tiles between sea rocks and the main island.")]
+    [Range(5, 40)]
+    public int seaRockMinShoreDistance = 15;
 
     [Header("Fog")]
     public bool useFog = true;
@@ -101,6 +104,9 @@ public class MapGenerator : MonoBehaviour
     private int[] biomeTileCounts = new int[5]; // 1-4 normal + 5 sea rock
 
     private bool[,] seaRockMap;
+
+    // Shore distance field built BEFORE sea rocks, used to keep rocks away from land
+    private int[,] preSeaRockShoreDist;
 
     void Start()
     {
@@ -198,36 +204,111 @@ public class MapGenerator : MonoBehaviour
     }
 
     // -------------------------------------------------------------------------
-    // SEA ROCKS
+    // PRE-SEA-ROCK SHORE DISTANCE FIELD
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// BFS from all existing land outward into water.
+    /// Built AFTER the full island (with peninsulas/bays) but BEFORE sea rocks.
+    /// Each water tile stores its distance to the nearest land tile.
+    /// </summary>
+    void BuildPreSeaRockShoreField()
+    {
+        preSeaRockShoreDist = new int[width, height];
+        for (int x = 0; x < width; x++)
+            for (int y = 0; y < height; y++)
+                preSeaRockShoreDist[x, y] = landMap[x, y] ? 0 : int.MaxValue;
+
+        int[] dx4 = { 1, -1, 0, 0 };
+        int[] dy4 = { 0, 0, 1, -1 };
+
+        Queue<Vector2Int> queue = new Queue<Vector2Int>();
+        for (int x = 0; x < width; x++)
+            for (int y = 0; y < height; y++)
+                if (landMap[x, y])
+                    queue.Enqueue(new Vector2Int(x, y));
+
+        while (queue.Count > 0)
+        {
+            var pos = queue.Dequeue();
+            int d = preSeaRockShoreDist[pos.x, pos.y];
+            if (d >= 80) continue; // no need to propagate further
+            for (int i = 0; i < 4; i++)
+            {
+                int nx = pos.x + dx4[i], ny = pos.y + dy4[i];
+                if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
+                if (preSeaRockShoreDist[nx, ny] <= d + 1) continue;
+                preSeaRockShoreDist[nx, ny] = d + 1;
+                queue.Enqueue(new Vector2Int(nx, ny));
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // SEA ROCKS — SHORE-DISTANCE BASED PLACEMENT
     // -------------------------------------------------------------------------
 
     void GenerateSeaRocks(Vector2 islandCenter, float islandRadius)
     {
+        BuildPreSeaRockShoreField();
+
         float halfW = width * 0.5f;
         float halfH = height * 0.5f;
 
         for (int r = 0; r < seaRockCount; r++)
         {
-            float side = (r % 2 == 0) ? -1f : 1f;
-
-            float minDistFromCenter = islandRadius * 0.9f;
-            float maxDistFromCenter = halfW * seaRockSpread;
-            float hDist = Random.Range(minDistFromCenter, maxDistFromCenter);
-
-            float cx = islandCenter.x + side * hDist;
-            float vScatter = halfH * 0.5f;
-            float cy = islandCenter.y + Random.Range(-vScatter, vScatter);
-
-            if (cx < 15 || cx > width - 15 || cy < 15 || cy > height - 15) continue;
-
-            int icx = Mathf.RoundToInt(cx), icy = Mathf.RoundToInt(cy);
-            if (icx >= 0 && icx < width && icy >= 0 && icy < height && landMap[icx, icy]) continue;
-
             float rockRadius = islandRadius * seaRockSize * Random.Range(0.5f, 1.5f);
+            int rockRadiusTiles = Mathf.CeilToInt(rockRadius * 1.5f);
 
-            List<Vector2> rockPoly = GenerateRockPolygon(new Vector2(cx, cy), rockRadius);
-            FillPolygon(rockPoly);
-            MarkSeaRockTiles(new Vector2(cx, cy), rockRadius);
+            // Required minimum: every pixel in the rock footprint must be at least
+            // seaRockMinShoreDistance tiles from any existing land
+            int requiredClearance = seaRockMinShoreDistance + rockRadiusTiles;
+
+            bool placed = false;
+
+            for (int attempt = 0; attempt < 30; attempt++)
+            {
+                float side = (attempt % 2 == 0) ? -1f : 1f;
+
+                float minDistFromCenter = islandRadius * 0.9f;
+                float maxDistFromCenter = halfW * seaRockSpread;
+                float hDist = Random.Range(minDistFromCenter, maxDistFromCenter);
+
+                float cx = islandCenter.x + side * hDist;
+                float vScatter = halfH * 0.5f;
+                float cy = islandCenter.y + Random.Range(-vScatter, vScatter);
+
+                int icx = Mathf.RoundToInt(cx), icy = Mathf.RoundToInt(cy);
+                if (icx < 15 || icx > width - 15 || icy < 15 || icy > height - 15) continue;
+
+                // Check that the rock center is far enough from any land
+                if (preSeaRockShoreDist[icx, icy] < requiredClearance) continue;
+
+                // Verify no pixel in the rock footprint is too close to existing land
+                bool tooClose = false;
+                for (int dx = -rockRadiusTiles; dx <= rockRadiusTiles && !tooClose; dx++)
+                    for (int dy = -rockRadiusTiles; dy <= rockRadiusTiles && !tooClose; dy++)
+                    {
+                        int px = icx + dx, py = icy + dy;
+                        if (px < 0 || px >= width || py < 0 || py >= height) continue;
+                        if (dx * dx + dy * dy > rockRadiusTiles * rockRadiusTiles) continue;
+                        if (preSeaRockShoreDist[px, py] < seaRockMinShoreDistance)
+                            tooClose = true;
+                    }
+
+                if (tooClose) continue;
+
+                // Place the rock
+                List<Vector2> rockPoly = GenerateRockPolygon(new Vector2(cx, cy), rockRadius);
+                FillPolygon(rockPoly);
+                MarkSeaRockTiles(new Vector2(cx, cy), rockRadius);
+                placed = true;
+                break;
+            }
+
+            // If we couldn't place this rock, just skip it
+            if (!placed)
+                Debug.Log($"MapGenerator: Sea rock {r} skipped — no valid position found.");
         }
     }
 
