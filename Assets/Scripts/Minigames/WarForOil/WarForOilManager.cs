@@ -491,6 +491,13 @@ public class WarForOilManager : MonoBehaviour
             dealRewardRatio = choice.dealRewardRatio;
         }
 
+        //anında event tetikleme — choice'a bağlı event varsa direkt göster, WarProcess'e dönmeden
+        if (choice.hasImmediateEvent && choice.immediateEvent != null)
+        {
+            TriggerEvent(choice.immediateEvent);
+            return;
+        }
+
         //savaş sürecine geri dön
         currentState = WarForOilState.WarProcess;
     }

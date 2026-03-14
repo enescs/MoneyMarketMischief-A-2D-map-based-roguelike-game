@@ -260,6 +260,8 @@ Event icindeki tek bir secenek. Serializable sinif.
 | `eventBlockCycles` | Gecici event engeli — bu kadar event donemi boyunca event gelmez (0-10, 0=etkisiz) |
 | `blocksCeasefire` | Secilirse savas sonuna kadar oyuncunun ateskes butonu engellenir |
 | `blocksEventGroup` | Secilirse bu event'in ait oldugu gruptaki (OFPC/WTETWC) tum eventler bir daha tetiklenmez |
+| `hasImmediateEvent` | Secildiginde hic beklemeden direkt baska bir event tetiklenir (WarProcess'e donmeden) |
+| `immediateEvent` | Aninda tetiklenecek WarForOilEvent referansi |
 | `hasProbabilisticWarEnd` | Olasilik bazli savas bitirme (3 sonuc: savas biter / event yok olur / tekrar tetiklenir) |
 | `probWarEndChance` | Savas bitme olasiligi (0-1, support=50 icin base deger) |
 | `probDismissChance` | Event yok olma olasiligi (0-1, support=50 icin base deger). Tekrar tetiklenme = 1 - warEnd - dismiss |
@@ -905,7 +907,7 @@ Savas sirasinda event tetiklemeden once `EventCoordinator.CanShowEvent()` kontro
 - **Choice'lar foldout ile**: Her choice icinde 10 foldout grubu:
   1. **Modifiers** — supportModifier, suspicionModifier, reputationModifier, politicalInfluenceModifier, costModifier (birikimli), wealthModifier (anlik), cornerGrabModifier
   2. **Protest Etkisi** — protestModifier, protestTriggerChanceBonus, olasilikli tepki (hasProtestChance + alt alanlari)
-  4. **Diger Sonuclar** — endsWar, reducesReward, endsWarWithDeal, blocksEvents, blocksCeasefire, blocksEventGroup, hasProbabilisticRewardReduction, hasProbabilisticWarEnd
+  4. **Diger Sonuclar** — endsWar, reducesReward, endsWarWithDeal, blocksEvents, blocksCeasefire, blocksEventGroup, hasImmediateEvent, hasProbabilisticRewardReduction, hasProbabilisticWarEnd
   5. **Feed Sonuclari** — freezesFeed, slowsFeed, hasFeedOverride (alt kosullu alanlarla)
   6. **Zincir Dallanmasi** — chainInfluenceStat, esik degerleri, chainBranches listesi (targetEvent, weightRange0-3), chainCanEnd, chainEndWeight
   7. **Rakip Isgal Flagleri** — acceptsRivalDeal, rejectsRivalDeal

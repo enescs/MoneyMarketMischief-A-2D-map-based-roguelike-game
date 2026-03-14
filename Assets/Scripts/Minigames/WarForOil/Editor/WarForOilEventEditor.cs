@@ -531,6 +531,18 @@ public class WarForOilEventEditor : Editor
                 EditorGUI.indentLevel--;
             }
 
+            //anında event tetikleme — choice seçildiğinde direkt bu event gösterilir
+            SerializedProperty hasImmediate = choice.FindPropertyRelative("hasImmediateEvent");
+            EditorGUILayout.PropertyField(hasImmediate, new GUIContent("Anında Event Tetikle"));
+            if (hasImmediate.boolValue)
+            {
+                EditorGUI.indentLevel++;
+                EditorGUILayout.PropertyField(
+                    choice.FindPropertyRelative("immediateEvent"),
+                    new GUIContent("Tetiklenecek Event"));
+                EditorGUI.indentLevel--;
+            }
+
             EditorGUI.indentLevel--;
         }
 
@@ -1013,6 +1025,8 @@ public class WarForOilEventEditor : Editor
         choice.FindPropertyRelative("endsWomanProcess").boolValue = false;
         choice.FindPropertyRelative("womanObsessionModifier").floatValue = 0f;
         choice.FindPropertyRelative("permanentMultipliers").ClearArray();
+        choice.FindPropertyRelative("hasImmediateEvent").boolValue = false;
+        choice.FindPropertyRelative("immediateEvent").objectReferenceValue = null;
         choice.FindPropertyRelative("requiredSkills").ClearArray();
         choice.FindPropertyRelative("statConditions").ClearArray();
     }

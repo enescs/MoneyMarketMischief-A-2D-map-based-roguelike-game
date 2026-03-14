@@ -168,6 +168,10 @@ public class WarForOilEventChoice
     //kalıcı stat çarpanları (seçildiğinde anında ve kalıcı uygulanır — tüm oyun boyunca geçerli)
     public List<PermanentMultiplierEntry> permanentMultipliers = new List<PermanentMultiplierEntry>();
 
+    //anında tetiklenen event — choice seçildiğinde hiç beklemeden direkt bu event gösterilir
+    public bool hasImmediateEvent; //true ise seçildiğinde anında bir event tetiklenir
+    public WarForOilEvent immediateEvent; //anında tetiklenecek event
+
     //ön koşullar (Editor tarafından foldout içinde çizilir)
     public List<Skill> requiredSkills; //bu seçenek için açılmış olması gereken skill'ler
     public List<StatCondition> statConditions; //bu seçenek için sağlanması gereken stat koşulları
