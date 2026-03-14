@@ -120,8 +120,14 @@ public class UndergroundMapManager : MonoBehaviour
         undergroundSprite.name = "UndergroundMap";
     }
 
-    Color GetUndergroundLandColor(int x, int y, bool discovered, bool hasPetroleum)
+    [Header("Treasure")]
+    [Tooltip("Color for discovered treasure tiles on the underground map.")]
+    public Color treasureColor = new Color(0.85f, 0.72f, 0.15f);
+
+    Color GetUndergroundLandColor(int x, int y, bool discovered, bool hasPetroleum, bool hasTreasure = false)
     {
+        if (hasTreasure && discovered)
+            return treasureColor;
         if (hasPetroleum && discovered)
             return petroleumColor;
 
@@ -151,10 +157,8 @@ public class UndergroundMapManager : MonoBehaviour
         if (blendMap == null) blendMap = new float[mapW, mapH];
 
         var bedGen = PetroleumBedGenerator.Instance;
+        var treasureGen = TreasureGenerator.Instance;
 
-        // Scan the circle. For each land tile compute a blend value:
-        // - Inside the solid core: blend = 1 (fully discovered color)
-        // - Between core and edge: linear fade from 1 to 0
         for (int dx = -radius; dx <= radius; dx++)
         for (int dy = -radius; dy <= radius; dy++)
         {
@@ -166,27 +170,33 @@ public class UndergroundMapManager : MonoBehaviour
             if (!mapGenerator.IsLand(px, py)) continue;
 
             float dist = Mathf.Sqrt(distSq);
-            float normDist = dist / radius; // 0 at center, 1 at edge
+            float normDist = dist / radius;
 
             float t;
             if (normDist <= blendSolidCore)
-                t = 1f; // fully discovered
+                t = 1f;
             else
-                t = 1f - ((normDist - blendSolidCore) / (1f - blendSolidCore)); // fade to 0
+                t = 1f - ((normDist - blendSolidCore) / (1f - blendSolidCore));
 
             t = Mathf.Clamp01(t);
 
-            // Keep the highest blend value (so overlapping circles don't darken)
             if (t <= blendMap[px, py]) continue;
             blendMap[px, py] = t;
 
             if (t >= 0.99f)
+            {
                 discoveredMap[px, py] = true;
 
-            bool hasPetroleum = bedGen != null && bedGen.IsGenerated && bedGen.HasPetroleum(px, py);
+                // Discover treasure at this tile if present
+                if (treasureGen != null && treasureGen.IsGenerated)
+                    treasureGen.DiscoverTreasure(new Vector2Int(px, py));
+            }
 
-            Color undiscovered = GetUndergroundLandColor(px, py, false, false);
-            Color discovered   = GetUndergroundLandColor(px, py, true, hasPetroleum);
+            bool hasPetroleum = bedGen != null && bedGen.IsGenerated && bedGen.HasPetroleum(px, py);
+            bool hasTreasure  = treasureGen != null && treasureGen.IsGenerated && treasureGen.HasTreasure(px, py);
+
+            Color undiscovered = GetUndergroundLandColor(px, py, false, false, false);
+            Color discovered   = GetUndergroundLandColor(px, py, true, hasPetroleum, hasTreasure);
             Color c = Color.Lerp(undiscovered, discovered, t);
 
             float fog = mapGenerator.GetFog(px, py);
@@ -197,6 +207,10 @@ public class UndergroundMapManager : MonoBehaviour
         }
 
         undergroundTexture.Apply();
+
+        // Notify treasure system to refresh sprites for newly discovered treasures
+        if (TreasureSystem.Instance != null)
+            TreasureSystem.Instance.OnTilesRevealed();
     }
 
     public bool IsDiscovered(int x, int y)
@@ -248,6 +262,10 @@ public class UndergroundMapManager : MonoBehaviour
     {
         if (!ready) return;
         var bedGen = PetroleumBedGenerator.Instance;
+        var treasureGen = TreasureGenerator.Instance;
+
+        if (treasureGen != null && treasureGen.IsGenerated)
+            treasureGen.DebugDiscoverAll();
 
         for (int x = 0; x < mapW; x++)
         for (int y = 0; y < mapH; y++)
@@ -256,7 +274,8 @@ public class UndergroundMapManager : MonoBehaviour
             discoveredMap[x, y] = true;
 
             bool hasPetroleum = bedGen != null && bedGen.IsGenerated && bedGen.HasPetroleum(x, y);
-            Color c = GetUndergroundLandColor(x, y, true, hasPetroleum);
+            bool hasTreasure  = treasureGen != null && treasureGen.IsGenerated && treasureGen.HasTreasure(x, y);
+            Color c = GetUndergroundLandColor(x, y, true, hasPetroleum, hasTreasure);
 
             float fog = mapGenerator.GetFog(x, y);
             if (fog > 0f)
@@ -266,6 +285,9 @@ public class UndergroundMapManager : MonoBehaviour
         }
 
         undergroundTexture.Apply();
+
+        if (TreasureSystem.Instance != null)
+            TreasureSystem.Instance.OnTilesRevealed();
     }
 
     public bool IsReady => ready;

@@ -111,7 +111,7 @@ public class PetroleumBedGenerator : MonoBehaviour
         for (int a = 0; a < placementAttempts; a++)
         {
             int x = UnityEngine.Random.Range(0, w), y = UnityEngine.Random.Range(0, h);
-            if (!mapGenerator.IsLand(x, y)) continue;
+            if (!mapGenerator.IsActionableLand(x, y)) continue;
             bool tooClose = false;
             foreach (var c in used)
                 if (Vector2Int.Distance(new Vector2Int(x, y), c) < minBedSeparation) { tooClose = true; break; }
@@ -123,7 +123,6 @@ public class PetroleumBedGenerator : MonoBehaviour
     void StampBed(PetroleumBed bed, int idx, int w, int h)
     {
         int cx = bed.center.x, cy = bed.center.y, r = bed.radius;
-        // Scan a slightly larger area so noise tendrils can reach beyond nominal radius
         int scanR = Mathf.RoundToInt(r * 1.2f);
 
         for (int dx = -scanR; dx <= scanR; dx++)
@@ -131,24 +130,18 @@ public class PetroleumBedGenerator : MonoBehaviour
         {
             int px = cx + dx, py = cy + dy;
             if (px < 0 || px >= w || py < 0 || py >= h) continue;
-            if (!mapGenerator.IsLand(px, py)) continue;
+            if (!mapGenerator.IsActionableLand(px, py)) continue;
 
             float dist = Mathf.Sqrt(dx * dx + dy * dy);
-            float normDist = dist / r; // can exceed 1.0 in the outer fringe
+            float normDist = dist / r;
 
-            // Smooth falloff: tiles further from center need higher noise to qualify
-            // At center (normDist=0): threshold is base value (easy to pass)
-            // At edge (normDist=1): threshold is ~0.85 (hard to pass)
-            // Beyond edge (normDist>1): threshold approaches 1.0 (almost impossible)
             float edgeFade = Mathf.Clamp01(normDist);
             float adjustedThreshold = Mathf.Lerp(noiseThreshold, 0.95f, edgeFade * edgeFade);
 
             float noise = Mathf.PerlinNoise(px * noiseScale + bed.noiseOffsetX, py * noiseScale + bed.noiseOffsetY);
             if (noise < adjustedThreshold) continue;
 
-            // Purity also degrades toward edge
             float purityFade = 1f - Mathf.Clamp01(normDist) * purityEdgeFalloff;
-            // Extra random dropout near edges for organic feel
             if (normDist > 0.7f && UnityEngine.Random.value < (normDist - 0.7f) * 0.5f) continue;
 
             float tilePurity = bed.scaledPurity * purityFade;

@@ -276,7 +276,7 @@ public class PetroleumSystem : MonoBehaviour
         if (mouse.leftButton.wasPressedThisFrame)
         {
             Vector2Int tile = ScreenToTile(mouse.position.ReadValue());
-            if (tile.x >= 0 && mapGenerator.IsLand(tile.x, tile.y))
+            if (tile.x >= 0 && mapGenerator.IsActionableLand(tile.x, tile.y))
                 PlacePump(tile);
         }
     }
