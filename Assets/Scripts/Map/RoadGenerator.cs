@@ -3,159 +3,84 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Generates a full road network across the map using smooth Catmull-Rom splines.
-/// 
-/// Road hierarchy:
-///   1. Highways     — wide roads connecting region clusters across the island
-///   2. City streets — medium grid-like network inside Cities regions
-///   3. Rural paths  — thin winding dirt paths through Agricultural regions
-///   4. Industrial   — medium roads in Industrial regions connecting to highways
+/// Prosedüral yol ağı üretici.
 ///
-/// All roads are smooth, swirly curves — not jittery random walks.
-/// Roads are painted with configurable outlines (darker border).
-/// Exposes a public API for other systems (MapDecorPlacer) to query road proximity.
+/// Yol hiyerarşisi:
+///   1. Highway   — tüm bölgeleri bağlayan kalın ana arter (biyom fark etmez)
+///   2. Dallanma  — highway'den yarım parabol şeklinde ayrılan, biyoma göre görünüm alan yollar
+///
+/// Highway yakınlarında dallanma dışında başka yol bulunmaz.
 /// </summary>
 public class RoadGenerator : MonoBehaviour
 {
     public static RoadGenerator Instance { get; private set; }
 
-    // -------------------------------------------------------------------------
-    // REFERENCES
-    // -------------------------------------------------------------------------
-
     [Header("References")]
     public MapGenerator mapGenerator;
 
     // -------------------------------------------------------------------------
-    // HIGHWAY SETTINGS
+    // HIGHWAY
     // -------------------------------------------------------------------------
 
-    [Header("Highways — Inter-Region Connections")]
-
-    [Tooltip("Number of nearest region centers each center tries to connect to.")]
-    [Range(1, 4)] public int highwayConnectionCount = 2;
-
-    [Tooltip("Number of random control points inserted between start and end to create curves.")]
+    [Header("Highway — Ana Arter")]
+    [Tooltip("Kontrol noktası sayısı (eğri yumuşaklığı).")]
     [Range(1, 8)] public int highwayControlPoints = 4;
-
-    [Tooltip("How far control points can drift sideways from the straight line (fraction of total distance).")]
-    [Range(0.05f, 0.5f)] public float highwayCurviness = 0.25f;
-
-    [Tooltip("Number of interpolated points per spline segment. Higher = smoother.")]
+    [Tooltip("Kontrol noktası sapma oranı. Düşük = daha düz.")]
+    [Range(0.01f, 0.5f)] public float highwayCurviness = 0.30f;
+    [Tooltip("Spline çözünürlüğü (segment başına).")]
     [Range(8, 40)] public int highwaySplineResolution = 20;
-
-    [Tooltip("Minimum tile distance between parallel highways. Paths closer than this are rejected.")]
-    [Range(5, 80)] public int highwayMinSeparation = 40;
-
-    // -------------------------------------------------------------------------
-    // CITY STREET SETTINGS
-    // -------------------------------------------------------------------------
-
-    [Header("City Streets — Curved Network Inside Cities")]
-
-    [Tooltip("Approximate spacing between street lines in tiles.")]
-    [Range(8, 40)] public int cityStreetSpacing = 16;
-
-    [Tooltip("Border buffer — streets won't generate within this many tiles of a non-city biome.")]
-    [Range(0, 15)] public int cityStreetBorderBuffer = 4;
-
-    [Tooltip("Control points per street line for curvature.")]
-    [Range(2, 10)] public int cityStreetControlPoints = 5;
-
-    [Tooltip("How far city street control points drift from straight. Fraction of street length.")]
-    [Range(0.02f, 0.3f)] public float cityStreetCurviness = 0.08f;
-
-    [Tooltip("Spline resolution per segment for city streets.")]
-    [Range(6, 30)] public int cityStreetSplineResolution = 12;
+    [Tooltip("Highway kalınlığı.")]
+    [Range(2, 8)] public int highwayThickness = 4;
+    [Tooltip("Highway outline genişliği.")]
+    [Range(0, 3)] public int highwayOutlineWidth = 1;
+    [Tooltip("Highway'in kıyıdan minimum uzaklığı (piksel).")]
+    [Range(5, 50)] public int highwayShoreBuffer = 30;
+    public Color highwayFill = new Color(0.38f, 0.36f, 0.32f);
+    public Color highwayOutline = new Color(0.25f, 0.23f, 0.20f);
 
     // -------------------------------------------------------------------------
-    // RURAL PATH SETTINGS
+    // DALLANMA
     // -------------------------------------------------------------------------
 
-    [Header("Rural Paths — Winding Dirt Tracks in Agricultural Regions")]
-
-    [Tooltip("Number of rural paths to attempt generating.")]
-    [Range(0, 30)] public int ruralPathCount = 8;
-
-    [Tooltip("Control points per rural path.")]
-    [Range(2, 10)] public int ruralPathControlPoints = 5;
-
-    [Tooltip("How far rural path control points wander. Higher = more winding.")]
-    [Range(0.1f, 0.6f)] public float ruralPathCurviness = 0.20f;
-
-    [Tooltip("Spline resolution per segment for rural paths.")]
-    [Range(6, 30)] public int ruralPathSplineResolution = 15;
-
-    [Tooltip("Minimum distance between path start and end.")]
-    [Range(10, 150)] public int ruralPathMinLength = 40;
-
-    [Tooltip("Minimum separation between rural path start points (tiles).")]
-    [Range(10, 60)] public int ruralPathMinSeparation = 30;
+    [Header("Dallanma — Kapsama Tabanlı")]
+    [Tooltip("Herhangi bir yoldan bu kadar piksel uzaktaki kara alanları dallanma hedefi olur.")]
+    [Range(15, 80)] public int branchMinCoverageDistance = 35;
+    [Tooltip("Maksimum dal sayısı (güvenlik limiti).")]
+    [Range(5, 40)] public int branchMaxCount = 25;
+    [Tooltip("Dal başlangıç kalınlığı (highway'e yakın uç).")]
+    [Range(1, 6)] public int branchStartThickness = 3;
+    [Tooltip("Dal bitiş kalınlığı (en uç).")]
+    [Range(1, 4)] public int branchEndThickness = 1;
+    [Tooltip("Dal outline genişliği.")]
+    [Range(0, 2)] public int branchOutlineWidth = 1;
 
     // -------------------------------------------------------------------------
-    // INDUSTRIAL ROAD SETTINGS
+    // BİYOM GÖRÜNÜMLERİ (dallanma hedef renkleri)
     // -------------------------------------------------------------------------
 
-    [Header("Industrial Roads — Access Roads in Industrial Zones")]
+    [Header("Agricultural (Forest/Biome 1) — Toprak Yol")]
+    public Color agriculturalFill = new Color(0.50f, 0.42f, 0.28f);
+    public Color agriculturalOutline = new Color(0.38f, 0.32f, 0.20f);
 
-    [Tooltip("Number of industrial roads to attempt.")]
-    [Range(0, 20)] public int industrialRoadCount = 4;
+    [Header("Cities (Desert/Biome 2) — Şehir Yolu")]
+    public Color citiesFill = new Color(0.42f, 0.40f, 0.37f);
+    public Color citiesOutline = new Color(0.28f, 0.26f, 0.24f);
 
-    [Tooltip("Control points per industrial road.")]
-    [Range(1, 6)] public int industrialRoadControlPoints = 3;
+    [Header("Industrial (Mountains/Biome 3) — Sanayi Yolu")]
+    public Color industrialFill = new Color(0.32f, 0.28f, 0.24f);
+    public Color industrialOutline = new Color(0.20f, 0.17f, 0.14f);
 
-    [Tooltip("How far industrial road control points drift.")]
-    [Range(0.05f, 0.3f)] public float industrialRoadCurviness = 0.10f;
-
-    [Tooltip("Spline resolution per segment for industrial roads.")]
-    [Range(6, 30)] public int industrialRoadSplineResolution = 12;
-
-    [Tooltip("Minimum separation between industrial roads (tiles).")]
-    [Range(5, 40)] public int industrialRoadMinSeparation = 15;
-
-    // -------------------------------------------------------------------------
-    // PER-BIOME ROAD APPEARANCE
-    // -------------------------------------------------------------------------
-
-    [Header("Road Appearance — Cities Biome")]
-    [Range(2, 8)] public int citiesRoadThickness = 5;
-    [Range(0, 4)] public int citiesRoadOutlineWidth = 1;
-    public Color citiesRoadFill    = new Color(0.42f, 0.40f, 0.37f);
-    public Color citiesRoadOutline = new Color(0.28f, 0.26f, 0.24f);
-
-    [Header("Road Appearance — Agricultural Biome")]
-    [Range(1, 4)] public int agriculturalRoadThickness = 2;
-    [Range(0, 3)] public int agriculturalRoadOutlineWidth = 1;
-    public Color agriculturalRoadFill    = new Color(0.50f, 0.42f, 0.28f);
-    public Color agriculturalRoadOutline = new Color(0.38f, 0.32f, 0.20f);
-
-    [Header("Road Appearance — Industrial Biome")]
-    [Range(1, 5)] public int industrialBiomeRoadThickness = 3;
-    [Range(0, 3)] public int industrialBiomeRoadOutlineWidth = 1;
-    public Color industrialBiomeRoadFill    = new Color(0.32f, 0.28f, 0.24f);
-    public Color industrialBiomeRoadOutline = new Color(0.20f, 0.17f, 0.14f);
-
-    [Header("Road Appearance — Urban/Nature Biome")]
-    [Range(1, 3)] public int urbanRoadThickness = 1;
-    [Range(0, 2)] public int urbanRoadOutlineWidth = 1;
-    public Color urbanRoadFill    = new Color(0.42f, 0.36f, 0.26f);
-    public Color urbanRoadOutline = new Color(0.32f, 0.28f, 0.20f);
+    [Header("Urban (Plains/Biome 4) — Kentsel Yol")]
+    public Color urbanFill = new Color(0.45f, 0.43f, 0.40f);
+    public Color urbanOutline = new Color(0.30f, 0.28f, 0.25f);
 
     // -------------------------------------------------------------------------
-    // GENERAL
+    // GENEL
     // -------------------------------------------------------------------------
 
     [Header("General")]
-
-    [Tooltip("Minimum distance from water (in tiles) for any road pixel.")]
     [Range(0, 10)] public int shoreBuffer = 2;
-
-    [Tooltip("Scale factor for road counts on maps larger than 256x256.")]
     public bool scaleWithMapSize = true;
-
-    // -------------------------------------------------------------------------
-    // EVENTS
-    // -------------------------------------------------------------------------
 
     public static event Action OnRoadsGenerated;
 
@@ -163,14 +88,21 @@ public class RoadGenerator : MonoBehaviour
     // INTERNAL STATE
     // -------------------------------------------------------------------------
 
+    //her piksel için yol tipi (0=yok, 1=highway, 2=branch)
     private int[,] roadTypeMap;
     private int[,] roadDistanceField;
 
-    private List<Vector2Int> allRoadTiles    = new List<Vector2Int>();
-    private List<Vector2Int> highwayTiles    = new List<Vector2Int>();
-    private List<Vector2Int> cityStreetTiles = new List<Vector2Int>();
-    private List<Vector2Int> ruralPathTiles  = new List<Vector2Int>();
-    private List<Vector2Int> industrialTiles = new List<Vector2Int>();
+    //her yol pikselinin boyama bilgisi
+    private float[,] roadThicknessMap;
+    private Color[,] roadFillColorMap;
+    private Color[,] roadOutlineColorMap;
+    private int[,] roadOutlineWidthMap;
+
+    private List<Vector2Int> allRoadTiles = new List<Vector2Int>();
+    private List<Vector2Int> highwayTiles = new List<Vector2Int>();
+
+    //highway segment'leri — sıralı piksel listeleri, dallanma yön hesabı için
+    private List<List<Vector2Int>> highwaySegments = new List<List<Vector2Int>>();
 
     private List<RegionCenter> regionCenters = new List<RegionCenter>();
 
@@ -179,16 +111,8 @@ public class RoadGenerator : MonoBehaviour
     private bool _generated = false;
 
     private int[,] shoreDistCache;
-
-    // Tracks distance from the nearest highway pixel — used to prevent highway clumping
-    private int[,] highwayProximity;
-
     private static readonly int[] dx4 = { 1, -1, 0, 0 };
     private static readonly int[] dy4 = { 0, 0, 1, -1 };
-
-    // -------------------------------------------------------------------------
-    // DATA TYPES
-    // -------------------------------------------------------------------------
 
     public struct RegionCenter
     {
@@ -197,19 +121,15 @@ public class RoadGenerator : MonoBehaviour
         public int tileCount;
     }
 
-    // -------------------------------------------------------------------------
-    // LIFECYCLE
-    // -------------------------------------------------------------------------
-
     void Awake()
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
     }
 
-    // -------------------------------------------------------------------------
-    // PUBLIC ENTRY POINT
-    // -------------------------------------------------------------------------
+    // =========================================================================
+    // ANA GİRİŞ NOKTASI
+    // =========================================================================
 
     public void GenerateRoads(MapGenerator map, Texture2D mapTexture)
     {
@@ -220,15 +140,17 @@ public class RoadGenerator : MonoBehaviour
         }
 
         _tex = mapTexture;
-        _w   = map.width;
-        _h   = map.height;
+        _w = map.width;
+        _h = map.height;
 
         roadTypeMap = new int[_w, _h];
+        roadThicknessMap = new float[_w, _h];
+        roadFillColorMap = new Color[_w, _h];
+        roadOutlineColorMap = new Color[_w, _h];
+        roadOutlineWidthMap = new int[_w, _h];
         allRoadTiles.Clear();
         highwayTiles.Clear();
-        cityStreetTiles.Clear();
-        ruralPathTiles.Clear();
-        industrialTiles.Clear();
+        highwaySegments.Clear();
         regionCenters.Clear();
 
         float areaScale = scaleWithMapSize ? Mathf.Sqrt((_w * _h) / (256f * 256f)) : 1f;
@@ -236,9 +158,7 @@ public class RoadGenerator : MonoBehaviour
         BuildShoreDistanceCache(map);
         FindRegionCenters(map);
         GenerateHighways(map, areaScale);
-        GenerateCityStreets(map, areaScale);
-        GenerateRuralPaths(map, areaScale);
-        GenerateIndustrialRoads(map, areaScale);
+        GenerateBranches(map, areaScale);
 
         PaintAllRoads();
         _tex.Apply();
@@ -247,18 +167,13 @@ public class RoadGenerator : MonoBehaviour
 
         _generated = true;
 
-        Debug.Log($"RoadGenerator: highways={highwayTiles.Count}px, " +
-                  $"cityStreets={cityStreetTiles.Count}px, " +
-                  $"ruralPaths={ruralPathTiles.Count}px, " +
-                  $"industrial={industrialTiles.Count}px, " +
-                  $"total={allRoadTiles.Count}px, " +
-                  $"regionCenters={regionCenters.Count}");
+        Debug.Log($"RoadGenerator: total={allRoadTiles.Count}px, highway={highwayTiles.Count}px, segments={highwaySegments.Count}, regionCenters={regionCenters.Count}");
 
         OnRoadsGenerated?.Invoke();
     }
 
     // =========================================================================
-    // CATMULL-ROM SPLINE CORE
+    // CATMULL-ROM SPLINE
     // =========================================================================
 
     static Vector2 CatmullRom(Vector2 p0, Vector2 p1, Vector2 p2, Vector2 p3, float t)
@@ -273,10 +188,6 @@ public class RoadGenerator : MonoBehaviour
         );
     }
 
-    /// <summary>
-    /// Build a smooth pixel path from control points using Catmull-Rom interpolation.
-    /// Uses Bresenham fill between samples so there are no gaps.
-    /// </summary>
     List<Vector2Int> SplineToPixels(List<Vector2> controlPoints, int stepsPerSegment)
     {
         List<Vector2Int> pixels = new List<Vector2Int>();
@@ -309,27 +220,17 @@ public class RoadGenerator : MonoBehaviour
                     foreach (var bp in BresenhamLine(prev.Value.x, prev.Value.y, px, py))
                     {
                         long bkey = (long)bp.x << 32 | (uint)bp.y;
-                        if (!visited.Contains(bkey))
-                        {
-                            visited.Add(bkey);
-                            pixels.Add(bp);
-                        }
+                        if (!visited.Contains(bkey)) { visited.Add(bkey); pixels.Add(bp); }
                     }
                 }
                 else
                 {
                     long key = (long)px << 32 | (uint)py;
-                    if (!visited.Contains(key))
-                    {
-                        visited.Add(key);
-                        pixels.Add(current);
-                    }
+                    if (!visited.Contains(key)) { visited.Add(key); pixels.Add(current); }
                 }
-
                 prev = current;
             }
         }
-
         return pixels;
     }
 
@@ -339,7 +240,6 @@ public class RoadGenerator : MonoBehaviour
         int dx = Mathf.Abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
         int dy = -Mathf.Abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
         int err = dx + dy;
-
         while (true)
         {
             result.Add(new Vector2Int(x0, y0));
@@ -351,63 +251,48 @@ public class RoadGenerator : MonoBehaviour
         return result;
     }
 
-    /// <summary>
-    /// Generate control points with Perlin-driven perpendicular drift for organic S-curves.
-    /// </summary>
     List<Vector2> BuildControlPoints(Vector2 start, Vector2 end, int numMiddle, float curviness)
     {
         List<Vector2> points = new List<Vector2>();
         points.Add(start);
 
-        Vector2 dir  = end - start;
+        Vector2 dir = end - start;
         float length = dir.magnitude;
         if (length < 1f) { points.Add(end); return points; }
 
         Vector2 norm = dir.normalized;
         Vector2 perp = new Vector2(-norm.y, norm.x);
         float maxDrift = length * curviness;
-
         float noiseSeed = UnityEngine.Random.Range(0f, 9999f);
 
         for (int i = 1; i <= numMiddle; i++)
         {
             float t = (float)i / (numMiddle + 1);
             Vector2 baseline = Vector2.Lerp(start, end, t);
-
-            float drift  = (Mathf.PerlinNoise(t * 2.5f + noiseSeed, noiseSeed * 0.3f) - 0.5f) * 2f * maxDrift;
+            float drift = (Mathf.PerlinNoise(t * 2.5f + noiseSeed, noiseSeed * 0.3f) - 0.5f) * 2f * maxDrift;
             float wobble = (Mathf.PerlinNoise(noiseSeed + 500f, t * 5f) - 0.5f) * maxDrift * 0.3f;
-
             points.Add(baseline + perp * (drift + wobble));
         }
-
         points.Add(end);
         return points;
     }
 
     List<Vector2> BuildValidatedControlPoints(MapGenerator map, Vector2 start, Vector2 end,
-                                               int numMiddle, float curviness, bool allowCrossBiome)
+                                               int numMiddle, float curviness)
     {
         List<Vector2> raw = BuildControlPoints(start, end, numMiddle, curviness);
-
         for (int i = 1; i < raw.Count - 1; i++)
         {
             Vector2 pt = raw[i];
             Vector2 baseline = Vector2.Lerp(start, end, (float)i / (raw.Count - 1));
-
             for (int attempt = 0; attempt < 10; attempt++)
             {
                 Vector2 candidate = Vector2.Lerp(pt, baseline, attempt * 0.1f);
                 int cx = Mathf.RoundToInt(candidate.x);
                 int cy = Mathf.RoundToInt(candidate.y);
-
-                if (IsValidRoadPoint(map, cx, cy))
-                {
-                    raw[i] = candidate;
-                    break;
-                }
+                if (IsValidRoadPoint(map, cx, cy)) { raw[i] = candidate; break; }
             }
         }
-
         return raw;
     }
 
@@ -421,23 +306,8 @@ public class RoadGenerator : MonoBehaviour
         return true;
     }
 
-    List<Vector2Int> FilterPathToLand(MapGenerator map, List<Vector2Int> path, bool allowSkipBadPixels)
-    {
-        List<Vector2Int> valid = new List<Vector2Int>();
-        foreach (var p in path)
-        {
-            if (!IsValidRoadPoint(map, p.x, p.y))
-            {
-                if (allowSkipBadPixels) continue;
-                break;
-            }
-            valid.Add(p);
-        }
-        return valid;
-    }
-
     // =========================================================================
-    // STEP 0: SHORE DISTANCE CACHE
+    // KIYIDAN UZAKLIK
     // =========================================================================
 
     void BuildShoreDistanceCache(MapGenerator map)
@@ -448,7 +318,6 @@ public class RoadGenerator : MonoBehaviour
                 shoreDistCache[x, y] = -1;
 
         Queue<Vector2Int> queue = new Queue<Vector2Int>();
-
         for (int x = 0; x < _w; x++)
             for (int y = 0; y < _h; y++)
             {
@@ -489,13 +358,12 @@ public class RoadGenerator : MonoBehaviour
     }
 
     // =========================================================================
-    // STEP 1: FIND REGION CENTERS
+    // BÖLGE MERKEZLERİ
     // =========================================================================
 
     void FindRegionCenters(MapGenerator map)
     {
         bool[,] visited = new bool[_w, _h];
-
         for (int x = 0; x < _w; x++)
             for (int y = 0; y < _h; y++)
             {
@@ -513,7 +381,6 @@ public class RoadGenerator : MonoBehaviour
                 {
                     var pos = queue.Dequeue();
                     cluster.Add(pos);
-
                     for (int i = 0; i < 4; i++)
                     {
                         int nx = pos.x + dx4[i], ny = pos.y + dy4[i];
@@ -526,21 +393,15 @@ public class RoadGenerator : MonoBehaviour
                     }
                 }
 
-                if (cluster.Count < 50) continue;
+                if (cluster.Count < 500) continue;
 
                 long sumX = 0, sumY = 0;
                 foreach (var p in cluster) { sumX += p.x; sumY += p.y; }
                 int cx = (int)(sumX / cluster.Count);
                 int cy = (int)(sumY / cluster.Count);
-
                 Vector2Int center = SnapToNearestInList(new Vector2Int(cx, cy), cluster);
 
-                regionCenters.Add(new RegionCenter
-                {
-                    position  = center,
-                    biome     = biome,
-                    tileCount = cluster.Count
-                });
+                regionCenters.Add(new RegionCenter { position = center, biome = biome, tileCount = cluster.Count });
             }
     }
 
@@ -558,470 +419,793 @@ public class RoadGenerator : MonoBehaviour
     }
 
     // =========================================================================
-    // STEP 2: HIGHWAYS (spline-based, with separation enforcement)
+    // HIGHWAY — HARİTAYI BAŞTAN SONA DOLAŞAN TEK SÜREKLİ YOL
     // =========================================================================
 
     void GenerateHighways(MapGenerator map, float areaScale)
     {
-        if (regionCenters.Count < 2) return;
-
-        //highway yakınlık haritasını başlat
-        highwayProximity = new int[_w, _h];
+        //kara kütlesi bağlantı haritası — her piksele component ID ata
+        int[,] landComponent = new int[_w, _h];
         for (int x = 0; x < _w; x++)
             for (int y = 0; y < _h; y++)
-                highwayProximity[x, y] = int.MaxValue;
+                landComponent[x, y] = -1;
 
-        //Kruskal MST — tüm bölge çiftlerini mesafeye göre sırala
-        List<(float dist, int a, int b)> edges = new List<(float, int, int)>();
-        for (int i = 0; i < regionCenters.Count; i++)
-            for (int j = i + 1; j < regionCenters.Count; j++)
+        int componentCount = 0;
+        List<int> componentSizes = new List<int>();
+
+        for (int x = 0; x < _w; x++)
+            for (int y = 0; y < _h; y++)
             {
-                float d = Vector2Int.Distance(regionCenters[i].position, regionCenters[j].position);
-                edges.Add((d, i, j));
+                if (!map.IsLand(x, y) || landComponent[x, y] >= 0) continue;
+
+                int compId = componentCount++;
+                int size = 0;
+                Queue<Vector2Int> queue = new Queue<Vector2Int>();
+                queue.Enqueue(new Vector2Int(x, y));
+                landComponent[x, y] = compId;
+
+                while (queue.Count > 0)
+                {
+                    var pos = queue.Dequeue();
+                    size++;
+                    for (int i = 0; i < 4; i++)
+                    {
+                        int nx = pos.x + dx4[i], ny = pos.y + dy4[i];
+                        if (nx < 0 || nx >= _w || ny < 0 || ny >= _h) continue;
+                        if (!map.IsLand(nx, ny) || landComponent[nx, ny] >= 0) continue;
+                        landComponent[nx, ny] = compId;
+                        queue.Enqueue(new Vector2Int(nx, ny));
+                    }
+                }
+                componentSizes.Add(size);
             }
-        edges.Sort((a, b) => a.dist.CompareTo(b.dist));
 
-        //union-find
-        int[] parent = new int[regionCenters.Count];
-        for (int i = 0; i < parent.Length; i++) parent[i] = i;
+        //en büyük kara kütlesini bul
+        int mainComponent = 0;
+        for (int i = 1; i < componentSizes.Count; i++)
+            if (componentSizes[i] > componentSizes[mainComponent]) mainComponent = i;
 
-        //MST kenarlarını bul
-        List<(int a, int b)> mstEdges = new List<(int, int)>();
-        foreach (var edge in edges)
+        //ana kara kütlesindeki en uzak iki noktayı bul (BFS ile)
+        //ana kara kütlesindeki noktaları topla (sampling ile)
+        List<Vector2Int> mainLandPoints = new List<Vector2Int>();
+        for (int x = 0; x < _w; x += 3)
+            for (int y = 0; y < _h; y += 3)
+                if (map.IsLand(x, y) && landComponent[x, y] == mainComponent
+                    && shoreDistCache[x, y] >= Mathf.Max(1, shoreBuffer))
+                    mainLandPoints.Add(new Vector2Int(x, y));
+
+        if (mainLandPoints.Count < 2)
         {
-            int ra = UnionFind(parent, edge.a);
-            int rb = UnionFind(parent, edge.b);
-            if (ra == rb) continue; //aynı gruptaysa döngü olur, atla
-            parent[ra] = rb;
-            mstEdges.Add((edge.a, edge.b));
-            if (mstEdges.Count == regionCenters.Count - 1) break;
+            Debug.LogWarning("RoadGenerator: Yeterli kara noktası bulunamadı!");
+            return;
         }
 
-        //MST kenarları için highway çiz
-        foreach (var (a, b) in mstEdges)
+        //kuşbakışı (Euclidean) en uzak iki noktayı bul
+        Vector2Int startPt = Vector2Int.zero, endPt = Vector2Int.zero;
+        float maxEuclidean = 0f;
+        //O(n^2) yerine: ilk geçiş ile yaklaşık bul
+        //rastgele 200 nokta örnekle, aralarındaki en uzağı bul
+        int sampleCount = Mathf.Min(mainLandPoints.Count, 200);
+        for (int i = 0; i < sampleCount; i++)
         {
-            Vector2 start = regionCenters[a].position;
-            Vector2 end = regionCenters[b].position;
-
-            int ctrlPts = Mathf.Max(2, Mathf.RoundToInt(highwayControlPoints * areaScale));
-            List<Vector2> controlPts = BuildValidatedControlPoints(
-                map, start, end, ctrlPts, highwayCurviness, true);
-
-            RepelControlPointsFromHighways(controlPts, start, end);
-
-            List<Vector2Int> pixels = SplineToPixels(controlPts, highwaySplineResolution);
-            List<Vector2Int> filtered = FilterPathToLand(map, pixels, true);
-
-            if (filtered.Count < 10) continue;
-
-            foreach (var p in filtered)
-                RegisterRoadTile(p, 1, highwayTiles);
-
-            UpdateHighwayProximity(filtered);
+            Vector2Int a = mainLandPoints[i * mainLandPoints.Count / sampleCount];
+            for (int j = i + 1; j < sampleCount; j++)
+            {
+                Vector2Int b = mainLandPoints[j * mainLandPoints.Count / sampleCount];
+                float d = Vector2Int.Distance(a, b);
+                if (d > maxEuclidean) { maxEuclidean = d; startPt = a; endPt = b; }
+            }
         }
-    }
 
-    int UnionFind(int[] parent, int x)
-    {
-        while (parent[x] != x) { parent[x] = parent[parent[x]]; x = parent[x]; }
-        return x;
-    }
-
-    /// <summary>Push control points away from existing highway pixels.</summary>
-    void RepelControlPointsFromHighways(List<Vector2> controlPts, Vector2 start, Vector2 end)
-    {
-        if (highwayProximity == null) return;
-
-        Vector2 dir = end - start;
-        float length = dir.magnitude;
-        if (length < 1f) return;
-        Vector2 perp = new Vector2(-dir.normalized.y, dir.normalized.x);
-
-        // Skip first and last (start/end are fixed)
-        for (int i = 1; i < controlPts.Count - 1; i++)
+        if (maxEuclidean < 30f)
         {
-            Vector2 pt = controlPts[i];
-            int px = Mathf.RoundToInt(pt.x);
-            int py = Mathf.RoundToInt(pt.y);
-
-            if (px < 0 || px >= _w || py < 0 || py >= _h) continue;
-
-            int dist = highwayProximity[px, py];
-            if (dist >= highwayMinSeparation) continue;
-
-            // Find which direction to push (away from nearest highway)
-            // Sample both perpendicular directions, push toward the farther one
-            float pushAmount = (highwayMinSeparation - dist) * 0.8f;
-
-            Vector2 pushA = pt + perp * pushAmount;
-            Vector2 pushB = pt - perp * pushAmount;
-
-            int distA = SampleHighwayProximity(pushA);
-            int distB = SampleHighwayProximity(pushB);
-
-            controlPts[i] = (distA >= distB) ? pushA : pushB;
+            Debug.LogWarning("RoadGenerator: Kuşbakışı mesafe çok kısa!");
+            return;
         }
+
+        //düz hat üzerinde waypoint'ler oluştur — su varsa en yakın karaya snap
+        int waypointCount = Mathf.Max(5, Mathf.RoundToInt(maxEuclidean / 20f));
+        List<Vector2Int> waypoints = new List<Vector2Int>();
+        waypoints.Add(startPt);
+
+        for (int i = 1; i < waypointCount; i++)
+        {
+            float t = (float)i / waypointCount;
+            int wx = Mathf.RoundToInt(Mathf.Lerp(startPt.x, endPt.x, t));
+            int wy = Mathf.RoundToInt(Mathf.Lerp(startPt.y, endPt.y, t));
+            wx = Mathf.Clamp(wx, 0, _w - 1);
+            wy = Mathf.Clamp(wy, 0, _h - 1);
+
+            Vector2Int wp = new Vector2Int(wx, wy);
+
+            //su üstündeyse veya farklı component ise → en yakın karaya snap
+            if (!map.IsLand(wx, wy) || landComponent[wx, wy] != mainComponent)
+                wp = SnapToNearestLand(map, landComponent, mainComponent, wp);
+
+            if (wp.x >= 0) waypoints.Add(wp);
+        }
+        waypoints.Add(endPt);
+
+        //waypoint'leri sırayla Dijkstra ile birleştir (su etrafından dolaşır)
+        List<Vector2Int> fullPath = new List<Vector2Int>();
+        for (int i = 0; i < waypoints.Count - 1; i++)
+        {
+            List<Vector2Int> segment = BFSPathOnLand(map, landComponent, mainComponent, waypoints[i], waypoints[i + 1]);
+            if (segment.Count > 0)
+            {
+                //ilk segment hariç başlangıç noktasını atla (önceki segmentin sonu)
+                int skip = (i > 0 && fullPath.Count > 0) ? 1 : 0;
+                for (int s = skip; s < segment.Count; s++)
+                    fullPath.Add(segment[s]);
+            }
+        }
+
+        if (fullPath.Count < 10)
+        {
+            Debug.LogWarning("RoadGenerator: Highway yolu oluşturulamadı!");
+            return;
+        }
+
+        List<Vector2Int> bfsPath = fullPath;
+        Debug.Log($"RoadGenerator: Highway start={startPt}, end={endPt}, euclidean={maxEuclidean:F0}, path={bfsPath.Count}px, waypoints={waypoints.Count}");
+
+        //BFS yolu çok kıvrımlı olabilir — düzleştir
+        List<Vector2Int> smoothed = SmoothPath(bfsPath, highwayCurviness);
+
+        foreach (var pixel in smoothed)
+            RegisterRoadTile(pixel, 1, highwayThickness, highwayOutlineWidth, highwayFill, highwayOutline);
+
+        highwayTiles.AddRange(smoothed);
+        highwaySegments.Add(new List<Vector2Int>(smoothed));
     }
 
-    int SampleHighwayProximity(Vector2 pt)
+    /// <summary>
+    /// BFS ile iki nokta arasında kara üzerinden yol bulur.
+    /// </summary>
+    /// <summary>
+    /// Kıyıdan uzak geçmeyi tercih eden yol bulma.
+    /// Kıyıya yakın pikseller pahalı, iç kısım ucuz — yol doğal olarak ortadan geçer.
+    /// Integer bucket queue ile Dijkstra.
+    /// </summary>
+    List<Vector2Int> BFSPathOnLand(MapGenerator map, int[,] landComponent, int compId, Vector2Int from, Vector2Int to)
     {
-        int px = Mathf.RoundToInt(pt.x);
-        int py = Mathf.RoundToInt(pt.y);
-        if (px < 0 || px >= _w || py < 0 || py >= _h) return 0;
-        return highwayProximity[px, py];
+        int[,] cost = new int[_w, _h];
+        Vector2Int[,] parent = new Vector2Int[_w, _h];
+        for (int x = 0; x < _w; x++)
+            for (int y = 0; y < _h; y++)
+            { cost[x, y] = int.MaxValue; parent[x, y] = new Vector2Int(-1, -1); }
+
+        //maliyet: kıyıya yakın = pahalı (max penaltı), iç kısım = ucuz (1)
+        int maxPenalty = highwayShoreBuffer * 4;
+
+        //bucket queue — index = maliyet
+        int maxBuckets = (_w + _h) * maxPenalty;
+        maxBuckets = Mathf.Min(maxBuckets, 500000); //bellek limiti
+        Queue<Vector2Int>[] buckets = new Queue<Vector2Int>[maxBuckets];
+
+        cost[from.x, from.y] = 0;
+        if (buckets[0] == null) buckets[0] = new Queue<Vector2Int>();
+        buckets[0].Enqueue(from);
+
+        bool found = false;
+        for (int bucket = 0; bucket < maxBuckets && !found; bucket++)
+        {
+            if (buckets[bucket] == null || buckets[bucket].Count == 0) continue;
+
+            while (buckets[bucket].Count > 0)
+            {
+                var pos = buckets[bucket].Dequeue();
+                if (pos == to) { found = true; break; }
+
+                int curCost = cost[pos.x, pos.y];
+                if (curCost > bucket) continue; //eski giriş, atla
+
+                for (int i = 0; i < 4; i++)
+                {
+                    int nx = pos.x + dx4[i], ny = pos.y + dy4[i];
+                    if (nx < 0 || nx >= _w || ny < 0 || ny >= _h) continue;
+                    if (!map.IsLand(nx, ny) || landComponent[nx, ny] != compId) continue;
+
+                    //kıyıya yakınlık cezası
+                    int shore = shoreDistCache[nx, ny];
+                    int penalty = shore >= highwayShoreBuffer ? 1 : Mathf.Max(1, maxPenalty - shore * 3);
+                    int newCost = curCost + penalty;
+
+                    if (newCost < cost[nx, ny] && newCost < maxBuckets)
+                    {
+                        cost[nx, ny] = newCost;
+                        parent[nx, ny] = pos;
+                        if (buckets[newCost] == null) buckets[newCost] = new Queue<Vector2Int>();
+                        buckets[newCost].Enqueue(new Vector2Int(nx, ny));
+                    }
+                }
+            }
+        }
+
+        List<Vector2Int> path = new List<Vector2Int>();
+        if (!found) return path;
+
+        Vector2Int cur = to;
+        while (cur != from)
+        {
+            path.Add(cur);
+            cur = parent[cur.x, cur.y];
+            if (cur.x < 0) break;
+        }
+        path.Add(from);
+        path.Reverse();
+        return path;
     }
 
-    /// <summary>BFS update of highway proximity from newly placed highway tiles.</summary>
-    void UpdateHighwayProximity(List<Vector2Int> newTiles)
+    /// <summary>
+    /// BFS yolunu düzleştirir ve kıyıdan uzaklaştırır.
+    /// Waypoint'leri kara merkezine doğru çekerek yolun ortadan geçmesini sağlar.
+    /// </summary>
+    List<Vector2Int> SmoothPath(List<Vector2Int> rawPath, float curviness)
     {
+        if (rawPath.Count < 20) return rawPath;
+
+        //her smoothStep pikselde bir waypoint al
+        int smoothStep = Mathf.Max(10, rawPath.Count / 20);
+        List<Vector2> waypoints = new List<Vector2>();
+        waypoints.Add((Vector2)rawPath[0]);
+        for (int i = smoothStep; i < rawPath.Count - smoothStep; i += smoothStep)
+        {
+            Vector2Int rawPt = rawPath[i];
+            //waypoint'i kıyıdan içeriye çek — shore gradient yönünde
+            Vector2 pushed = PushInland(rawPt, highwayShoreBuffer);
+            waypoints.Add(pushed);
+        }
+        waypoints.Add((Vector2)rawPath[rawPath.Count - 1]);
+
+        //Catmull-Rom spline tüm waypoint'lerden geçer
+        List<Vector2Int> smoothed = new List<Vector2Int>();
+        HashSet<long> visited = new HashSet<long>();
+        List<Vector2Int> splinePixels = SplineToPixels(waypoints, 10);
+        foreach (var p in splinePixels)
+        {
+            long key = (long)p.x << 32 | (uint)p.y;
+            if (!visited.Contains(key)) { visited.Add(key); smoothed.Add(p); }
+        }
+
+        return smoothed;
+    }
+
+    /// <summary>
+    /// Noktayı kıyıdan uzağa iter. Shore distance gradient yönünde hareket ettirir.
+    /// </summary>
+    Vector2 PushInland(Vector2Int pt, int targetDist)
+    {
+        if (shoreDistCache[pt.x, pt.y] >= targetDist) return (Vector2)pt;
+
+        //shore distance'ın arttığı yönü bul (gradient)
+        int bestDx = 0, bestDy = 0;
+        int bestShore = shoreDistCache[pt.x, pt.y];
+        for (int r = -3; r <= 3; r++)
+            for (int c = -3; c <= 3; c++)
+            {
+                int nx = pt.x + r, ny = pt.y + c;
+                if (nx < 0 || nx >= _w || ny < 0 || ny >= _h) continue;
+                if (shoreDistCache[nx, ny] > bestShore)
+                {
+                    bestShore = shoreDistCache[nx, ny];
+                    bestDx = r; bestDy = c;
+                }
+            }
+
+        if (bestDx == 0 && bestDy == 0) return (Vector2)pt;
+
+        //gradient yönünde targetDist'e ulaşana kadar it
+        Vector2 dir = new Vector2(bestDx, bestDy).normalized;
+        float pushDist = (targetDist - shoreDistCache[pt.x, pt.y]) * 0.7f;
+        return (Vector2)pt + dir * pushDist;
+    }
+
+    /// <summary>
+    /// BFS ile verilen noktadan ana kara kütlesindeki en uzak kara noktasını bulur.
+    /// Shore buffer'ı sağlayan noktalar arasında arar.
+    /// </summary>
+    /// <summary>
+    /// Su üstündeki noktayı en yakın kara noktasına snap eder.
+    /// </summary>
+    Vector2Int SnapToNearestLand(MapGenerator map, int[,] landComponent, int compId, Vector2Int from)
+    {
+        //BFS ile en yakın kara noktasını bul
         Queue<Vector2Int> queue = new Queue<Vector2Int>();
-        foreach (var tile in newTiles)
-        {
-            if (tile.x < 0 || tile.x >= _w || tile.y < 0 || tile.y >= _h) continue;
-            if (highwayProximity[tile.x, tile.y] == 0) continue;
-            highwayProximity[tile.x, tile.y] = 0;
-            queue.Enqueue(tile);
-        }
+        bool[,] visited = new bool[_w, _h];
+        queue.Enqueue(from);
+        visited[from.x, from.y] = true;
 
-        int maxSpread = highwayMinSeparation + 10; // Spread a bit beyond separation for smooth repel
         while (queue.Count > 0)
         {
             var pos = queue.Dequeue();
-            int d = highwayProximity[pos.x, pos.y];
-            if (d >= maxSpread) continue;
+            if (map.IsLand(pos.x, pos.y) && landComponent[pos.x, pos.y] == compId)
+                return pos;
 
             for (int i = 0; i < 4; i++)
             {
                 int nx = pos.x + dx4[i], ny = pos.y + dy4[i];
                 if (nx < 0 || nx >= _w || ny < 0 || ny >= _h) continue;
-                if (highwayProximity[nx, ny] <= d + 1) continue;
-                highwayProximity[nx, ny] = d + 1;
+                if (visited[nx, ny]) continue;
+                visited[nx, ny] = true;
                 queue.Enqueue(new Vector2Int(nx, ny));
             }
         }
+
+        return new Vector2Int(-1, -1); //bulunamadı
     }
 
-    // =========================================================================
-    // STEP 3: CITY STREETS
-    // =========================================================================
-
-    void GenerateCityStreets(MapGenerator map, float areaScale)
+    /// <summary>
+    /// BFS ile en uzak noktayı bulur. Eşit mesafede ise kıyıdan daha uzak olanı tercih eder.
+    /// </summary>
+    Vector2Int BFSFarthestLandPoint(MapGenerator map, int[,] landComponent, int compId, Vector2Int from, int minShore)
     {
-        int spacing = Mathf.Max(4, Mathf.RoundToInt(cityStreetSpacing * areaScale));
-
-        int minX = _w, maxX = 0, minY = _h, maxY = 0;
+        int[,] dist = new int[_w, _h];
         for (int x = 0; x < _w; x++)
             for (int y = 0; y < _h; y++)
-                if (map.IsLand(x, y) && map.GetBiome(x, y) == 2)
-                {
-                    if (x < minX) minX = x; if (x > maxX) maxX = x;
-                    if (y < minY) minY = y; if (y > maxY) maxY = y;
-                }
+                dist[x, y] = -1;
 
-        if (maxX <= minX || maxY <= minY) return;
+        Queue<Vector2Int> queue = new Queue<Vector2Int>();
+        dist[from.x, from.y] = 0;
+        queue.Enqueue(from);
 
-        // Horizontal
-        for (int y = minY + spacing; y < maxY; y += spacing)
+        Vector2Int farthest = from;
+        int maxScore = 0; //mesafe + shore derinliği
+
+        while (queue.Count > 0)
         {
-            int left = -1, right = -1;
-            for (int x = minX; x <= maxX; x++)
-                if (IsCityStreetCandidate(map, x, y)) { left = x; break; }
-            for (int x = maxX; x >= minX; x--)
-                if (IsCityStreetCandidate(map, x, y)) { right = x; break; }
+            var pos = queue.Dequeue();
+            int d = dist[pos.x, pos.y];
+            int shore = shoreDistCache[pos.x, pos.y];
 
-            if (left < 0 || right < 0 || right - left < spacing) continue;
-
-            List<Vector2> ctrl = BuildControlPoints(
-                new Vector2(left, y), new Vector2(right, y),
-                cityStreetControlPoints, cityStreetCurviness);
-            List<Vector2Int> pixels = SplineToPixels(ctrl, cityStreetSplineResolution);
-
-            foreach (var p in pixels)
-                if (IsCityStreetCandidate(map, p.x, p.y))
-                    RegisterRoadTile(p, 2, cityStreetTiles);
-        }
-
-        // Vertical
-        for (int x = minX + spacing; x < maxX; x += spacing)
-        {
-            int bottom = -1, top = -1;
-            for (int y = minY; y <= maxY; y++)
-                if (IsCityStreetCandidate(map, x, y)) { bottom = y; break; }
-            for (int y = maxY; y >= minY; y--)
-                if (IsCityStreetCandidate(map, x, y)) { top = y; break; }
-
-            if (bottom < 0 || top < 0 || top - bottom < spacing) continue;
-
-            List<Vector2> ctrl = BuildControlPoints(
-                new Vector2(x, bottom), new Vector2(x, top),
-                cityStreetControlPoints, cityStreetCurviness);
-            List<Vector2Int> pixels = SplineToPixels(ctrl, cityStreetSplineResolution);
-
-            foreach (var p in pixels)
-                if (IsCityStreetCandidate(map, p.x, p.y))
-                    RegisterRoadTile(p, 2, cityStreetTiles);
-        }
-    }
-
-    bool IsCityStreetCandidate(MapGenerator map, int x, int y)
-    {
-        if (x < 0 || x >= _w || y < 0 || y >= _h) return false;
-        if (!map.IsLand(x, y)) return false;
-        if (map.GetBiome(x, y) != 2) return false;
-        if (map.GetFog(x, y) > 0.5f) return false;
-        if (!HasShoreBuffer(x, y)) return false;
-
-        if (cityStreetBorderBuffer > 0)
-        {
-            for (int ddx = -cityStreetBorderBuffer; ddx <= cityStreetBorderBuffer; ddx++)
-                for (int ddy = -cityStreetBorderBuffer; ddy <= cityStreetBorderBuffer; ddy++)
-                {
-                    if (ddx * ddx + ddy * ddy > cityStreetBorderBuffer * cityStreetBorderBuffer) continue;
-                    int nx = x + ddx, ny = y + ddy;
-                    if (nx < 0 || nx >= _w || ny < 0 || ny >= _h) return false;
-                    if (!map.IsLand(nx, ny) || map.GetBiome(nx, ny) != 2) return false;
-                }
-        }
-
-        return true;
-    }
-
-    // =========================================================================
-    // STEP 4: RURAL PATHS
-    // =========================================================================
-
-    void GenerateRuralPaths(MapGenerator map, float areaScale)
-    {
-        int count = Mathf.RoundToInt(ruralPathCount * areaScale);
-
-        //highway üzerinde tarım biyomuna yakın dallanma noktalarını bul
-        List<Vector2Int> branchPoints = new List<Vector2Int>();
-        if (highwayTiles.Count > 0)
-        {
-            int step = Mathf.Max(1, highwayTiles.Count / (count * 5));
-            for (int i = 0; i < highwayTiles.Count; i += step)
+            //skor: BFS mesafesi + kıyıdan uzaklık bonusu
+            int score = d + shore / 2;
+            if (score > maxScore && shore >= minShore)
             {
-                var tile = highwayTiles[i];
-                //yakınında tarım biyomu var mı
-                bool nearAg = false;
-                for (int r = -6; r <= 6 && !nearAg; r++)
-                    for (int c = -6; c <= 6 && !nearAg; c++)
+                maxScore = score;
+                farthest = pos;
+            }
+
+            for (int i = 0; i < 4; i++)
+            {
+                int nx = pos.x + dx4[i], ny = pos.y + dy4[i];
+                if (nx < 0 || nx >= _w || ny < 0 || ny >= _h) continue;
+                if (dist[nx, ny] >= 0) continue;
+                if (!map.IsLand(nx, ny) || landComponent[nx, ny] != compId) continue;
+                dist[nx, ny] = d + 1;
+                queue.Enqueue(new Vector2Int(nx, ny));
+            }
+        }
+
+        return farthest;
+    }
+
+    // =========================================================================
+    // DALLANMA — BFS TABANLI KAPSAMA SİSTEMİ
+    // =========================================================================
+
+    private const int BRANCH_CLEARANCE = 15;
+
+    void GenerateBranches(MapGenerator map, float areaScale)
+    {
+        if (highwaySegments.Count == 0) return;
+
+        //tüm yol piksellerini tek listeye topla — dallar eklendikçe büyür
+        List<Vector2Int> allRoadNodes = new List<Vector2Int>();
+        foreach (var seg in highwaySegments)
+            allRoadNodes.AddRange(seg);
+
+        if (allRoadNodes.Count < 20) return;
+
+        // ---- BFS UZAKLIK ALANI — tüm mevcut yollardan ----
+        int[,] roadDist = new int[_w, _h];
+        for (int x = 0; x < _w; x++)
+            for (int y = 0; y < _h; y++)
+                roadDist[x, y] = int.MaxValue;
+
+        Queue<Vector2Int> bfsQueue = new Queue<Vector2Int>();
+        foreach (var hp in allRoadNodes)
+        {
+            roadDist[hp.x, hp.y] = 0;
+            bfsQueue.Enqueue(hp);
+        }
+        //BFS yayılımı — sadece kara üzerinde
+        while (bfsQueue.Count > 0)
+        {
+            var pos = bfsQueue.Dequeue();
+            int d = roadDist[pos.x, pos.y];
+            if (d >= 600) continue;
+            for (int i = 0; i < 4; i++)
+            {
+                int nx = pos.x + dx4[i], ny = pos.y + dy4[i];
+                if (nx < 0 || nx >= _w || ny < 0 || ny >= _h) continue;
+                if (!map.IsLand(nx, ny)) continue;
+                if (roadDist[nx, ny] <= d + 1) continue;
+                roadDist[nx, ny] = d + 1;
+                bfsQueue.Enqueue(new Vector2Int(nx, ny));
+            }
+        }
+
+        int placed = 0;
+        for (int iter = 0; iter < branchMaxCount; iter++)
+        {
+            // ---- 1) En uzak kara noktasını bul ----
+            int maxDist = 0;
+            Vector2Int target = Vector2Int.zero;
+            bool found = false;
+            for (int x = 0; x < _w; x += 3)
+                for (int y = 0; y < _h; y += 3)
+                {
+                    if (!map.IsLand(x, y)) continue;
+                    int d = roadDist[x, y];
+                    if (d == int.MaxValue) continue;
+                    if (d > maxDist)
                     {
-                        int nx = tile.x + r, ny = tile.y + c;
-                        if (nx >= 0 && nx < _w && ny >= 0 && ny < _h
-                            && map.IsLand(nx, ny) && map.GetBiome(nx, ny) == 1)
-                            nearAg = true;
+                        maxDist = d;
+                        target = new Vector2Int(x, y);
+                        found = true;
                     }
-                if (nearAg) branchPoints.Add(tile);
+                }
+
+            if (!found || maxDist < branchMinCoverageDistance) break; //tüm harita kapsandı
+
+            // ---- 2) Hedefin en yakın yol noktasını bul (highway veya önceki dal) ----
+            float bestHwDist = float.MaxValue;
+            int bestHwIdx = 0;
+            int searchStep = Mathf.Max(1, allRoadNodes.Count / 200);
+            for (int i = 0; i < allRoadNodes.Count; i += searchStep)
+            {
+                float dd = Vector2Int.Distance(allRoadNodes[i], target);
+                if (dd < bestHwDist) { bestHwDist = dd; bestHwIdx = i; }
+            }
+            //ince arama
+            int sFrom = Mathf.Max(0, bestHwIdx - searchStep);
+            int sTo = Mathf.Min(allRoadNodes.Count - 1, bestHwIdx + searchStep);
+            for (int i = sFrom; i <= sTo; i++)
+            {
+                float dd = Vector2Int.Distance(allRoadNodes[i], target);
+                if (dd < bestHwDist) { bestHwDist = dd; bestHwIdx = i; }
+            }
+            Vector2Int hwStart = allRoadNodes[bestHwIdx];
+
+            // ---- 3) Waypoint'li Dijkstra ile kara üzerinden yol bul ----
+            //hedef ile highway arası düz hat üzerinde waypoint oluştur, su ise snap
+            float eucDist = Vector2Int.Distance(hwStart, target);
+            int wpCount = Mathf.Max(3, Mathf.RoundToInt(eucDist / 25f));
+            List<Vector2Int> branchWaypoints = new List<Vector2Int>();
+            branchWaypoints.Add(hwStart);
+            for (int w = 1; w < wpCount; w++)
+            {
+                float wt = (float)w / wpCount;
+                int wx = Mathf.RoundToInt(Mathf.Lerp(hwStart.x, target.x, wt));
+                int wy = Mathf.RoundToInt(Mathf.Lerp(hwStart.y, target.y, wt));
+                wx = Mathf.Clamp(wx, 0, _w - 1);
+                wy = Mathf.Clamp(wy, 0, _h - 1);
+                if (!map.IsLand(wx, wy))
+                {
+                    Vector2Int snapped = SnapToNearestLandSimple(map, wx, wy, 40);
+                    if (snapped.x < 0) continue;
+                    wx = snapped.x; wy = snapped.y;
+                }
+                branchWaypoints.Add(new Vector2Int(wx, wy));
+            }
+            branchWaypoints.Add(target);
+
+            //waypoint'leri sırayla basit BFS ile birleştir (kara üzerinde, su geçmez)
+            List<Vector2Int> rawPath = new List<Vector2Int>();
+            bool pathBroken = false;
+            for (int w = 0; w < branchWaypoints.Count - 1; w++)
+            {
+                List<Vector2Int> seg = BFSPathOnLandSimple(map, branchWaypoints[w], branchWaypoints[w + 1]);
+                if (seg.Count == 0) { pathBroken = true; break; }
+                int skip = (w > 0 && rawPath.Count > 0) ? 1 : 0;
+                for (int s = skip; s < seg.Count; s++) rawPath.Add(seg[s]);
+            }
+            if (pathBroken || rawPath.Count < 15)
+            {
+                roadDist[target.x, target.y] = 0;
+                continue;
+            }
+
+            // ---- 4) Yolu düzleştir (Catmull-Rom + Perlin sapma) ----
+            List<Vector2Int> smoothed = SmoothBranchPath(map, rawPath);
+            if (smoothed.Count < 10) smoothed = rawPath;
+
+            // ---- 5) Kaydet + yeni dalı yol ağına ekle ----
+            //başlangıç noktasının highway'den BFS mesafesine göre gradient başlangıcını ayarla
+            //highway üstü=0, uzak dal ucu=yüksek → daldan çıkan dal doğru renk/kalınlıkta başlar
+            //highway pikselleri için roadDist zaten 0 yazılmış, ama biz orijinal mesafeyi bilmiyoruz
+            //en basiti: smoothed[0]'ın roadTypeMap'te highway mı branch mı olduğuna bakmak
+            //ama daha doğrusu: euclidean mesafeyi highway'e göre normalize etmek
+            float hwMinDist = float.MaxValue;
+            foreach (var seg in highwaySegments)
+            {
+                int step2 = Mathf.Max(1, seg.Count / 30);
+                for (int si = 0; si < seg.Count; si += step2)
+                {
+                    float dd = Vector2Int.Distance(seg[si], smoothed[0]);
+                    if (dd < hwMinDist) hwMinDist = dd;
+                }
+            }
+            //harita çaprazına göre normalize — 0=highway üstü, 1=harita köşesi
+            float mapDiag = Mathf.Sqrt(_w * _w + _h * _h);
+            float tStart = Mathf.Clamp01(hwMinDist / (mapDiag * 0.5f));
+            float tEnd = Mathf.Clamp01(tStart + (1f - tStart) * 0.8f);
+            RegisterBranchPixels(map, smoothed, tStart, tEnd);
+            //her 5 pikselde bir allRoadNodes'a ekle — sonraki dallar buradan dallanabilsin
+            for (int ri = 0; ri < smoothed.Count; ri += 5)
+                allRoadNodes.Add(smoothed[ri]);
+            placed++;
+
+            // ---- 6) Uzaklık alanını güncelle — yeni dal pikselleri 0 mesafe ----
+            foreach (var bp in smoothed)
+            {
+                if (roadDist[bp.x, bp.y] == 0) continue;
+                roadDist[bp.x, bp.y] = 0;
+                bfsQueue.Enqueue(bp);
+            }
+            while (bfsQueue.Count > 0)
+            {
+                var pos = bfsQueue.Dequeue();
+                int d = roadDist[pos.x, pos.y];
+                if (d >= 600) continue;
+                for (int i = 0; i < 4; i++)
+                {
+                    int nx = pos.x + dx4[i], ny = pos.y + dy4[i];
+                    if (nx < 0 || nx >= _w || ny < 0 || ny >= _h) continue;
+                    if (!map.IsLand(nx, ny)) continue;
+                    if (roadDist[nx, ny] <= d + 1) continue;
+                    roadDist[nx, ny] = d + 1;
+                    bfsQueue.Enqueue(new Vector2Int(nx, ny));
+                }
             }
         }
 
-        //tarım bölgeleri varsa ama highway yoksa veya branch point bulunamadıysa fallback
-        List<Vector2Int> agTiles = null;
-        if (branchPoints.Count == 0)
-        {
-            agTiles = new List<Vector2Int>();
-            for (int x = 0; x < _w; x++)
-                for (int y = 0; y < _h; y++)
-                    if (map.IsLand(x, y) && map.GetBiome(x, y) == 1 && map.GetFog(x, y) < 0.5f)
-                        agTiles.Add(new Vector2Int(x, y));
-            if (agTiles.Count < ruralPathMinLength) return;
-        }
-
-        List<Vector2Int> placedStarts = new List<Vector2Int>();
-
-        for (int p = 0; p < count; p++)
-        {
-            Vector2Int startTile;
-
-            if (branchPoints.Count > 0)
-            {
-                //highway'den dallan
-                startTile = branchPoints[UnityEngine.Random.Range(0, branchPoints.Count)];
-            }
-            else
-            {
-                //fallback — rastgele tarım tile'ı
-                startTile = agTiles[UnityEngine.Random.Range(0, agTiles.Count)];
-            }
-
-            //ayrım kontrolü
-            bool tooClose = false;
-            foreach (var ps in placedStarts)
-                if (Vector2Int.Distance(startTile, ps) < ruralPathMinSeparation)
-                { tooClose = true; break; }
-            if (tooClose) continue;
-
-            //rastgele yönde tarım bölgesine doğru uzat
-            Vector2Int endTile = startTile;
-            for (int attempt = 0; attempt < 30; attempt++)
-            {
-                float angle = UnityEngine.Random.Range(0f, Mathf.PI * 2f);
-                float dist = UnityEngine.Random.Range(ruralPathMinLength * 0.6f, ruralPathMinLength * 1.4f);
-                int ex = Mathf.RoundToInt(startTile.x + Mathf.Cos(angle) * dist);
-                int ey = Mathf.RoundToInt(startTile.y + Mathf.Sin(angle) * dist);
-                if (ex < 0 || ex >= _w || ey < 0 || ey >= _h) continue;
-                if (!map.IsLand(ex, ey)) continue;
-                if (map.GetBiome(ex, ey) != 1) continue;
-                endTile = new Vector2Int(ex, ey);
-                break;
-            }
-            if (endTile == startTile) continue;
-
-            List<Vector2> ctrl = BuildValidatedControlPoints(
-                map, (Vector2)startTile, (Vector2)endTile,
-                ruralPathControlPoints, ruralPathCurviness, false);
-
-            List<Vector2Int> pixels = SplineToPixels(ctrl, ruralPathSplineResolution);
-            List<Vector2Int> filtered = FilterPathToLand(map, pixels, false);
-
-            if (filtered.Count < ruralPathMinLength / 2) continue;
-
-            foreach (var t in filtered)
-                RegisterRoadTile(t, 3, ruralPathTiles);
-
-            placedStarts.Add(startTile);
-        }
+        Debug.Log($"RoadGenerator: {placed} dal yerleştirildi (kapsama tabanlı, eşik={branchMinCoverageDistance}px).");
     }
 
-    // =========================================================================
-    // STEP 5: INDUSTRIAL ROADS (cleaner, with separation)
-    // =========================================================================
-
-    void GenerateIndustrialRoads(MapGenerator map, float areaScale)
+    /// <summary>
+    /// Basit BFS ile kara üzerinden iki nokta arası yol bulur.
+    /// Highway'in Dijkstra'sından farklı olarak kıyı cezası uygulamaz — dallar kıyıya yakın geçebilir.
+    /// </summary>
+    List<Vector2Int> BFSPathOnLandSimple(MapGenerator map, Vector2Int from, Vector2Int to)
     {
-        int count = Mathf.RoundToInt(industrialRoadCount * areaScale);
+        Vector2Int[,] parent = new Vector2Int[_w, _h];
+        bool[,] visited = new bool[_w, _h];
+        for (int x = 0; x < _w; x++)
+            for (int y = 0; y < _h; y++)
+                parent[x, y] = new Vector2Int(-1, -1);
 
-        //endüstriyel bölge merkezlerini bul
-        List<RegionCenter> indCenters = new List<RegionCenter>();
-        foreach (var rc in regionCenters)
-            if (rc.biome == 3) indCenters.Add(rc);
+        Queue<Vector2Int> queue = new Queue<Vector2Int>();
+        queue.Enqueue(from);
+        visited[from.x, from.y] = true;
 
-        if (indCenters.Count == 0) return;
-
-        List<Vector2Int> placedEndpoints = new List<Vector2Int>();
-
-        for (int r = 0; r < count; r++)
+        bool found = false;
+        while (queue.Count > 0)
         {
-            //rastgele endüstriyel bölge merkezi seç
-            RegionCenter center = indCenters[UnityEngine.Random.Range(0, indCenters.Count)];
-            Vector2Int startTile = center.position;
+            var pos = queue.Dequeue();
+            if (pos == to) { found = true; break; }
 
-            //ayrım kontrolü
-            bool tooClose = false;
-            foreach (var ep in placedEndpoints)
-                if (Vector2Int.Distance(startTile, ep) < industrialRoadMinSeparation)
-                { tooClose = true; break; }
-            if (tooClose) continue;
-
-            Vector2Int endTile = startTile;
-
-            //en yakın highway noktasına bağlan (makul mesafede)
-            if (highwayTiles.Count > 0)
+            for (int i = 0; i < 4; i++)
             {
-                Vector2Int nearHwy = FindNearestInList(startTile, highwayTiles, 80);
-                if (nearHwy.x >= 0) endTile = nearHwy;
+                int nx = pos.x + dx4[i], ny = pos.y + dy4[i];
+                if (nx < 0 || nx >= _w || ny < 0 || ny >= _h) continue;
+                if (visited[nx, ny]) continue;
+                if (!map.IsLand(nx, ny)) continue;
+                visited[nx, ny] = true;
+                parent[nx, ny] = pos;
+                queue.Enqueue(new Vector2Int(nx, ny));
             }
+        }
 
-            if (endTile == startTile) continue;
+        List<Vector2Int> path = new List<Vector2Int>();
+        if (!found) return path;
 
-            List<Vector2> ctrl = BuildValidatedControlPoints(
-                map, (Vector2)startTile, (Vector2)endTile,
-                industrialRoadControlPoints, industrialRoadCurviness, true);
+        Vector2Int cur = to;
+        while (cur != from)
+        {
+            path.Add(cur);
+            cur = parent[cur.x, cur.y];
+            if (cur.x < 0) return new List<Vector2Int>();
+        }
+        path.Add(from);
+        path.Reverse();
+        return path;
+    }
 
-            List<Vector2Int> pixels = SplineToPixels(ctrl, industrialRoadSplineResolution);
+    /// <summary>
+    /// BFS yolunu Catmull-Rom spline ile düzleştirir.
+    /// Waypoint'lere Perlin noise ile doğal sapma ekler — mekanik değil organik görünüm.
+    /// </summary>
+    List<Vector2Int> SmoothBranchPath(MapGenerator map, List<Vector2Int> rawPath)
+    {
+        if (rawPath.Count < 30) return rawPath;
 
-            //biyom filtresi — sadece endüstriyel biyom (3) veya highway üzerindeki pikseller
-            //biyom dışına çıkınca en fazla 10 piksel tolerans, sonra kes
-            List<Vector2Int> filtered = new List<Vector2Int>();
-            int outsideBiomeStreak = 0;
-            int maxOutsideTolerance = 10;
+        //sık waypoint — her 15 pikselde bir
+        int smoothStep = Mathf.Max(8, rawPath.Count / 30);
+        float noiseSeed = UnityEngine.Random.Range(0f, 9999f);
 
-            foreach (var p in pixels)
+        List<Vector2> waypoints = new List<Vector2>();
+        waypoints.Add((Vector2)rawPath[0]);
+
+        //yolun genel yönünü hesapla (perpendicular sapma için)
+        Vector2 pathDir = ((Vector2)(rawPath[rawPath.Count - 1] - rawPath[0])).normalized;
+        Vector2 pathPerp = new Vector2(-pathDir.y, pathDir.x);
+        float pathLength = Vector2Int.Distance(rawPath[0], rawPath[rawPath.Count - 1]);
+        float maxDrift = pathLength * 0.12f; //yol uzunluğunun %12'si kadar sapma
+
+        for (int i = smoothStep; i < rawPath.Count - smoothStep; i += smoothStep)
+        {
+            Vector2 pt = (Vector2)rawPath[i];
+            float t = (float)i / rawPath.Count;
+
+            //Perlin noise ile doğal sapma — uçlara yakın sapma azalır
+            float edgeFade = Mathf.Sin(t * Mathf.PI); //0→0, 0.5→1, 1→0
+            float noise = (Mathf.PerlinNoise(t * 3f + noiseSeed, noiseSeed * 0.7f) - 0.5f) * 2f;
+            float drift = noise * maxDrift * edgeFade;
+
+            pt += pathPerp * drift;
+
+            //sapma sonrası kara kontrolü — su ise orijinal noktaya geri dön
+            int px = Mathf.Clamp(Mathf.RoundToInt(pt.x), 0, _w - 1);
+            int py = Mathf.Clamp(Mathf.RoundToInt(pt.y), 0, _h - 1);
+            if (!map.IsLand(px, py))
+                pt = (Vector2)rawPath[i]; //orijinale geri dön
+
+            waypoints.Add(pt);
+        }
+
+        waypoints.Add((Vector2)rawPath[rawPath.Count - 1]);
+
+        if (waypoints.Count < 3) return rawPath;
+
+        //Catmull-Rom spline
+        List<Vector2Int> splinePixels = SplineToPixels(waypoints, 12);
+
+        //kara üzerinde mi kontrol et — su olan pikselleri atla
+        List<Vector2Int> valid = new List<Vector2Int>();
+        foreach (var p in splinePixels)
+        {
+            if (map.IsLand(p.x, p.y))
+                valid.Add(p);
+        }
+
+        if (valid.Count < rawPath.Count * 0.4f) return rawPath;
+
+        return valid;
+    }
+
+    /// <summary>
+    /// Basit BFS ile en yakın kara noktasını bulur (küçük arama yarıçapı).
+    /// </summary>
+    Vector2Int SnapToNearestLandSimple(MapGenerator map, int x, int y, int maxRadius)
+    {
+        for (int r = 1; r <= maxRadius; r++)
+        {
+            for (int dx = -r; dx <= r; dx++)
             {
-                if (!IsValidRoadPoint(map, p.x, p.y)) { outsideBiomeStreak++; if (outsideBiomeStreak > maxOutsideTolerance) break; continue; }
+                int dy1 = r - Mathf.Abs(dx);
+                int dy2 = -dy1;
+                int nx, ny;
 
-                int biome = map.GetBiome(p.x, p.y);
-                bool isIndustrial = biome == 3;
-                bool isHighway = roadTypeMap[p.x, p.y] == 1;
+                nx = x + dx; ny = y + dy1;
+                if (nx >= 0 && nx < _w && ny >= 0 && ny < _h && map.IsLand(nx, ny))
+                    return new Vector2Int(nx, ny);
 
-                if (isIndustrial || isHighway)
+                if (dy2 != dy1)
                 {
-                    outsideBiomeStreak = 0;
-                    filtered.Add(p);
-                }
-                else
-                {
-                    outsideBiomeStreak++;
-                    if (outsideBiomeStreak > maxOutsideTolerance) break;
-                    filtered.Add(p); //kısa geçişlere izin ver
+                    nx = x + dx; ny = y + dy2;
+                    if (nx >= 0 && nx < _w && ny >= 0 && ny < _h && map.IsLand(nx, ny))
+                        return new Vector2Int(nx, ny);
                 }
             }
+        }
+        return new Vector2Int(-1, -1);
+    }
 
-            if (filtered.Count < 15) continue;
+    /// <summary>
+    /// Dal piksellerini biyoma göre gradient ile kaydeder.
+    /// tStart/tEnd: 0=highway görünümü, 1=tam biyom görünümü (en ince uç)
+    /// </summary>
+    void RegisterBranchPixels(MapGenerator map, List<Vector2Int> pixels, float tStart, float tEnd)
+    {
+        for (int p = 0; p < pixels.Count; p++)
+        {
+            float localT = (float)p / Mathf.Max(1, pixels.Count - 1);
+            float t = Mathf.Lerp(tStart, tEnd, localT);
 
-            foreach (var t in filtered)
-                RegisterRoadTile(t, 4, industrialTiles);
+            int biome = map.GetBiome(pixels[p].x, pixels[p].y);
+            GetBiomeBranchAppearance(biome, out Color targetFill, out Color targetOutline);
 
-            placedEndpoints.Add(startTile);
-            placedEndpoints.Add(endTile);
+            float thickness = Mathf.Lerp(branchStartThickness, branchEndThickness, t);
+            int outW = t < 0.6f ? branchOutlineWidth : Mathf.Max(0, branchOutlineWidth - 1);
+
+            Color fill = Color.Lerp(highwayFill, targetFill, t);
+            Color outline = Color.Lerp(highwayOutline, targetOutline, t);
+
+            RegisterRoadTile(pixels[p], 2, thickness, outW, fill, outline);
         }
     }
 
     // =========================================================================
-    // ROAD TILE REGISTRATION
+    // BİYOM GÖRÜNÜMÜ
     // =========================================================================
 
-    void RegisterRoadTile(Vector2Int tile, int roadType, List<Vector2Int> typeList)
+    void GetBiomeBranchAppearance(int biome, out Color fill, out Color outline)
+    {
+        switch (biome)
+        {
+            case 1: //agricultural (forest)
+                fill = agriculturalFill; outline = agriculturalOutline;
+                break;
+            case 2: //cities (desert)
+                fill = citiesFill; outline = citiesOutline;
+                break;
+            case 3: //industrial (mountains)
+                fill = industrialFill; outline = industrialOutline;
+                break;
+            case 4: //urban (plains)
+                fill = urbanFill; outline = urbanOutline;
+                break;
+            default:
+                fill = agriculturalFill; outline = agriculturalOutline;
+                break;
+        }
+    }
+
+    // =========================================================================
+    // YOL PİKSEL KAYIT
+    // =========================================================================
+
+    void RegisterRoadTile(Vector2Int tile, int roadType, float thickness, int outlineWidth, Color fill, Color outline)
     {
         if (tile.x < 0 || tile.x >= _w || tile.y < 0 || tile.y >= _h) return;
 
         int existing = roadTypeMap[tile.x, tile.y];
-        if (existing == 0 || roadType < existing)
+        if (existing == 0)
         {
-            if (existing == 0)
-                allRoadTiles.Add(tile);
+            allRoadTiles.Add(tile);
             roadTypeMap[tile.x, tile.y] = roadType;
+            roadThicknessMap[tile.x, tile.y] = thickness;
+            roadOutlineWidthMap[tile.x, tile.y] = outlineWidth;
+            roadFillColorMap[tile.x, tile.y] = fill;
+            roadOutlineColorMap[tile.x, tile.y] = outline;
         }
-
-        typeList.Add(tile);
+        else if (roadType < existing) //daha öncelikli yol tipi üzerine yaz
+        {
+            roadTypeMap[tile.x, tile.y] = roadType;
+            roadThicknessMap[tile.x, tile.y] = thickness;
+            roadOutlineWidthMap[tile.x, tile.y] = outlineWidth;
+            roadFillColorMap[tile.x, tile.y] = fill;
+            roadOutlineColorMap[tile.x, tile.y] = outline;
+        }
     }
 
     // =========================================================================
-    // PAINTING — biome-adaptive per-pixel appearance
+    // BOYAMA — PİKSEL BAZLI KALINLIK VE RENK
     // =========================================================================
-
-    MapGenerator _mapRef; // cached for paint phase
 
     void PaintAllRoads()
     {
-        _mapRef = mapGenerator;
-        if (_mapRef == null) return;
-
-        // Collect all unique road pixels with their road type
-        // Paint outline pass first, then fill pass — both adapt to local biome
-        // Order: lowest priority roads first, highest last
-
-        PaintAdaptiveRoad(ruralPathTiles,  3);
-        PaintAdaptiveRoad(industrialTiles, 4);
-        PaintAdaptiveRoad(cityStreetTiles, 2);
-        PaintAdaptiveRoad(highwayTiles,    1);
+        //önce dallanmalar, sonra highway üstte
+        PaintRoadsByType(2); //branch
+        PaintRoadsByType(1); //highway
     }
 
-    void PaintAdaptiveRoad(List<Vector2Int> tiles, int roadType)
+    void PaintRoadsByType(int targetType)
     {
-        if (tiles.Count == 0) return;
-
-        // Pass 1: outline
-        foreach (var tile in tiles)
+        //pass 1: outline
+        foreach (var tile in allRoadTiles)
         {
-            int biome = GetBiomeAt(tile.x, tile.y);
-            GetBiomeRoadAppearance(biome, roadType, out _, out Color outlineColor,
-                                   out int thickness, out int outlineWidth);
+            if (roadTypeMap[tile.x, tile.y] != targetType) continue;
 
-            if (outlineWidth <= 0) continue;
+            float thickness = roadThicknessMap[tile.x, tile.y];
+            int outlineW = roadOutlineWidthMap[tile.x, tile.y];
+            Color outlineColor = roadOutlineColorMap[tile.x, tile.y];
 
-            int totalHalf = (thickness + outlineWidth * 2) / 2;
+            if (outlineW <= 0) continue;
+
+            int totalHalf = Mathf.CeilToInt((thickness + outlineW * 2) / 2f);
             int totalHalfSq = totalHalf * totalHalf;
 
             for (int ddx = -totalHalf; ddx <= totalHalf; ddx++)
@@ -1034,14 +1218,15 @@ public class RoadGenerator : MonoBehaviour
                 }
         }
 
-        // Pass 2: fill
-        foreach (var tile in tiles)
+        //pass 2: fill
+        foreach (var tile in allRoadTiles)
         {
-            int biome = GetBiomeAt(tile.x, tile.y);
-            GetBiomeRoadAppearance(biome, roadType, out Color fillColor, out _,
-                                   out int thickness, out _);
+            if (roadTypeMap[tile.x, tile.y] != targetType) continue;
 
-            int fillHalf = thickness / 2;
+            float thickness = roadThicknessMap[tile.x, tile.y];
+            Color fillColor = roadFillColorMap[tile.x, tile.y];
+
+            int fillHalf = Mathf.CeilToInt(thickness / 2f);
             int fillHalfSq = fillHalf * fillHalf;
 
             for (int ddx = -fillHalf; ddx <= fillHalf; ddx++)
@@ -1055,65 +1240,8 @@ public class RoadGenerator : MonoBehaviour
         }
     }
 
-    int GetBiomeAt(int x, int y)
-    {
-        if (_mapRef == null || x < 0 || x >= _w || y < 0 || y >= _h) return 1;
-        return _mapRef.GetBiome(x, y);
-    }
-
-    /// <summary>
-    /// Returns road fill/outline color and thickness based on what biome the pixel sits in.
-    /// A highway through farmland becomes a thin dirt road; through cities it stays wide asphalt.
-    /// </summary>
-    void GetBiomeRoadAppearance(int biome, int roadType,
-                                 out Color fillColor, out Color outlineColor,
-                                 out int thickness, out int outlineWidth)
-    {
-        // Default to the biome's appearance regardless of road type
-        // Road type only matters as a minor modifier (highways get +1 thickness in cities)
-        switch (biome)
-        {
-            case 2: // Cities
-                fillColor    = citiesRoadFill;
-                outlineColor = citiesRoadOutline;
-                thickness    = citiesRoadThickness;
-                outlineWidth = citiesRoadOutlineWidth;
-                // City streets are thinner than highways passing through
-                if (roadType == 2) thickness = Mathf.Max(1, thickness - 2);
-                break;
-
-            case 1: // Agricultural
-                fillColor    = agriculturalRoadFill;
-                outlineColor = agriculturalRoadOutline;
-                thickness    = agriculturalRoadThickness;
-                outlineWidth = agriculturalRoadOutlineWidth;
-                break;
-
-            case 3: // Industrial
-                fillColor    = industrialBiomeRoadFill;
-                outlineColor = industrialBiomeRoadOutline;
-                thickness    = industrialBiomeRoadThickness;
-                outlineWidth = industrialBiomeRoadOutlineWidth;
-                break;
-
-            case 4: // Urban / Nature
-                fillColor    = urbanRoadFill;
-                outlineColor = urbanRoadOutline;
-                thickness    = urbanRoadThickness;
-                outlineWidth = urbanRoadOutlineWidth;
-                break;
-
-            default: // Fallback (shouldn't happen on land)
-                fillColor    = agriculturalRoadFill;
-                outlineColor = agriculturalRoadOutline;
-                thickness    = 1;
-                outlineWidth = 0;
-                break;
-        }
-    }
-
     // =========================================================================
-    // ROAD DISTANCE FIELD
+    // MESAFE ALANI
     // =========================================================================
 
     void BuildRoadDistanceField()
@@ -1135,7 +1263,6 @@ public class RoadGenerator : MonoBehaviour
             var pos = queue.Dequeue();
             int d = roadDistanceField[pos.x, pos.y];
             if (d >= 60) continue;
-
             for (int i = 0; i < 4; i++)
             {
                 int nx = pos.x + dx4[i], ny = pos.y + dy4[i];
@@ -1145,6 +1272,25 @@ public class RoadGenerator : MonoBehaviour
                 queue.Enqueue(new Vector2Int(nx, ny));
             }
         }
+    }
+
+    // =========================================================================
+    // HELPER
+    // =========================================================================
+
+    List<Vector2Int> FilterToLand(MapGenerator map, List<Vector2Int> path, bool allowSkip)
+    {
+        List<Vector2Int> valid = new List<Vector2Int>();
+        foreach (var p in path)
+        {
+            if (!IsValidRoadPoint(map, p.x, p.y))
+            {
+                if (allowSkip) continue;
+                break;
+            }
+            valid.Add(p);
+        }
+        return valid;
     }
 
     // =========================================================================
@@ -1193,35 +1339,19 @@ public class RoadGenerator : MonoBehaviour
     public int[,] GetRoadTypeMap() => roadTypeMap;
     public bool IsGenerated => _generated;
 
-    // =========================================================================
-    // HELPERS
-    // =========================================================================
-
-    Vector2Int FindNearestInList(Vector2Int from, List<Vector2Int> list, float maxDist)
-    {
-        float bestDist = maxDist;
-        Vector2Int best = new Vector2Int(-1, -1);
-        int step = Mathf.Max(1, list.Count / 300);
-        for (int i = 0; i < list.Count; i += step)
-        {
-            float d = Vector2Int.Distance(from, list[i]);
-            if (d < bestDist) { bestDist = d; best = list[i]; }
-        }
-        return best;
-    }
-
     public void Clear()
     {
         allRoadTiles.Clear();
         highwayTiles.Clear();
-        cityStreetTiles.Clear();
-        ruralPathTiles.Clear();
-        industrialTiles.Clear();
+        highwaySegments.Clear();
         regionCenters.Clear();
         roadTypeMap = null;
         roadDistanceField = null;
+        roadThicknessMap = null;
+        roadFillColorMap = null;
+        roadOutlineColorMap = null;
+        roadOutlineWidthMap = null;
         shoreDistCache = null;
-        highwayProximity = null;
         _tex = null;
         _generated = false;
     }
