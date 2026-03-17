@@ -262,6 +262,32 @@ public class MapDecorPlacer : MonoBehaviour
 
         PlaceSprite("Decor", sprite, wx, wy, scale, Random.value > 0.5f, 2);
     }
+    
+    public void DestroyBuildingsInRadius(FaultLineGenerator faultGen, Vector2Int epicenter, int radius)
+    {
+        int destroyed = 0;
+        int r2        = radius * radius;
+ 
+        for (int i = cityBuildings.Count - 1; i >= 0; i--)
+        {
+            BuildingData bd = cityBuildings[i];
+ 
+            // Must be within the earthquake circle
+            int dx = bd.tileX - epicenter.x;
+            int dy = bd.tileY - epicenter.y;
+            if (dx * dx + dy * dy > r2) continue;
+ 
+            // Must be on a fault tile
+            if (!faultGen.IsFault(bd.tileX, bd.tileY)) continue;
+ 
+            decorObjects.Remove(bd.go);
+            if (bd.go != null) Destroy(bd.go);
+            cityBuildings.RemoveAt(i);
+            destroyed++;
+        }
+ 
+        Debug.Log($"MapDecorPlacer: {destroyed} building(s) destroyed by earthquake.");
+    }
 
     Sprite PickDecorSprite(int biome, BiomePaintSettings s)
     {
@@ -304,6 +330,8 @@ public class MapDecorPlacer : MonoBehaviour
     // CLEANUP
     // -------------------------------------------------------------------------
 
+    
+    
     public void Clear()
     {
         foreach (var go in decorObjects)

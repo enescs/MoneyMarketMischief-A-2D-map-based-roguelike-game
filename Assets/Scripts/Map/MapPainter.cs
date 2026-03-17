@@ -5,7 +5,7 @@ using System.Collections.Generic;
 public class MapPainter : MonoBehaviour
 {
     [Header("References")]
-    public MapGenerator mapGenerator;
+    public MapGenerator   mapGenerator;
     public SpriteRenderer mapRenderer;
     public BiomePaintSettings settings;
 
@@ -17,26 +17,33 @@ public class MapPainter : MonoBehaviour
     [Range(2, 6)]  public int waterDepthSteps = 4;
 
     [Header("Region Transitions")]
-    [Tooltip("Tile width of the transition band between two different regions")]
     [Range(1, 80)] public int transitionWidth = 30;
 
     [Header("Beaches")]
-    [Tooltip("Chance (0-1) that a coastline segment gets a beach")]
     [Range(0f, 1f)] public float beachChance = 0.5f;
-    [Tooltip("How many tiles inland the beach extends")]
-    [Range(1, 40)] public int beachWidth = 10;
+    [Range(1, 40)]  public int   beachWidth  = 10;
 
     private MapDecorPlacer decorPlacer;
-    private Texture2D mapTexture;
-    private float[,] waterDistMap;
-    private float[,] borderDist;
-    private int[,]   nearestOther;
-    private float[,] beachDistMap;
-    private int[,]   shoreDistField;
+    private Texture2D      mapTexture;
+    private float[,]       waterDistMap;
+    private float[,]       borderDist;
+    private int[,]         nearestOther;
+    private float[,]       beachDistMap;
+    private int[,]         shoreDistField;
 
     void Awake() { decorPlacer = GetComponent<MapDecorPlacer>(); }
     void OnEnable()  { if (mapGenerator != null) mapGenerator.OnMapGenerated += Paint; }
     void OnDisable() { if (mapGenerator != null) mapGenerator.OnMapGenerated -= Paint; }
+
+    // -------------------------------------------------------------------------
+    // PUBLIC API
+    // -------------------------------------------------------------------------
+
+    public Texture2D GetMapTexture() => mapTexture;
+
+    // -------------------------------------------------------------------------
+    // PAINT
+    // -------------------------------------------------------------------------
 
     public void Paint()
     {
@@ -53,22 +60,20 @@ public class MapPainter : MonoBehaviour
         mapTexture = new Texture2D(w, h, TextureFormat.RGBA32, false);
         mapTexture.filterMode = FilterMode.Point;
 
-        float seed = Random.Range(0f, 9999f);
+        float   seed   = Random.Range(0f, 9999f);
         Color[] pixels = new Color[w * h];
 
         for (int x = 0; x < w; x++)
+        for (int y = 0; y < h; y++)
         {
-            for (int y = 0; y < h; y++)
-            {
-                Color c = mapGenerator.IsLand(x, y)
-                    ? PaintLandWithTransition(x, y, seed)
-                    : PaintWater(x, y, seed, w, h);
+            Color c = mapGenerator.IsLand(x, y)
+                ? PaintLandWithTransition(x, y, seed)
+                : PaintWater(x, y, seed, w, h);
 
-                float fog = mapGenerator.GetFog(x, y);
-                if (fog > 0f) c = Color.Lerp(c, settings.fogColor, fog);
+            float fog = mapGenerator.GetFog(x, y);
+            if (fog > 0f) c = Color.Lerp(c, settings.fogColor, fog);
 
-                pixels[x + y * w] = c;
-            }
+            pixels[x + y * w] = c;
         }
 
         mapTexture.SetPixels(pixels);
@@ -85,48 +90,174 @@ public class MapPainter : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning("MapPainter: No RoadGenerator found in scene. Roads will not be generated.");
+            Debug.LogWarning("MapPainter: No RoadGenerator found. Roads will not be generated.");
         }
 
         decorPlacer.Repaint(mapGenerator, settings, mapTexture);
     }
 
-    // -------------------------------------------------------------------------
-    // EARTHQUAKE CRACK APPLICATION
-    // -------------------------------------------------------------------------
+    // =========================================================================
+    // CRACK PAINTING
+    // =========================================================================
 
-    /// <summary>
-    /// Paints crack colors onto the surface texture at every land fault tile.
-    /// Called by EarthquakeSystem after an earthquake occurs.
-    /// </summary>
+    /// <summary>Legacy full-map crack — kept for compatibility.</summary>
     public void ApplyCracks(bool[,] faultMap, Color crackColor)
     {
         if (mapTexture == null || faultMap == null) return;
-
-        int w = mapGenerator.width;
-        int h = mapGenerator.height;
-
+        int w = mapGenerator.width, h = mapGenerator.height;
         for (int x = 0; x < w; x++)
         for (int y = 0; y < h; y++)
         {
-            if (!faultMap[x, y])           continue;
-            if (!mapGenerator.IsLand(x, y)) continue;
-
-            // Blend crack over existing color for a more natural look
+            if (!faultMap[x, y] || !mapGenerator.IsLand(x, y)) continue;
             Color existing = mapTexture.GetPixel(x, y);
-            mapTexture.SetPixel(x, y, Color.Lerp(existing, crackColor, 0.75f));
+            mapTexture.SetPixel(x, y, Color.Lerp(existing, crackColor, 0.85f));
+        }
+        mapTexture.Apply();
+        UndergroundMapManager.Instance?.RefreshSurfaceSprite();
+    }
+
+    /// <summary>
+    /// Draws sharp, branching ground cracks distributed semi-evenly inside the circle.
+    /// Crack origins are scattered across the circle rather than limited to fault tiles.
+    /// Returns the set of cracked tile positions for road-break detection.
+    /// </summary>
+    public HashSet<Vector2Int> DrawCracks(
+        bool[,]    faultMap,
+        Vector2Int epicenter,
+        int        radius,
+        Color      crackColor,
+        int        numCracks      = 8,
+        int        maxBranchDepth = 2,
+        float      branchChance   = 0.25f)
+    {
+        if (mapTexture == null) return new HashSet<Vector2Int>();
+
+        int w = mapGenerator.width;
+        int h = mapGenerator.height;
+        var crackedTiles = new HashSet<Vector2Int>();
+
+        // Scatter crack origins semi-evenly across the circle using a grid jitter approach
+        // so cracks fill the whole area rather than just emanating from the center
+        int gridSize = Mathf.Max(2, Mathf.RoundToInt(Mathf.Sqrt(numCracks)));
+        float cellW  = (radius * 2f) / gridSize;
+        float cellH  = (radius * 2f) / gridSize;
+
+        int placed = 0;
+        for (int gx = 0; gx < gridSize && placed < numCracks; gx++)
+        for (int gy = 0; gy < gridSize && placed < numCracks; gy++)
+        {
+            // Cell center offset from epicenter
+            float ox = -radius + cellW * (gx + 0.5f) + Random.Range(-cellW * 0.35f, cellW * 0.35f);
+            float oy = -radius + cellH * (gy + 0.5f) + Random.Range(-cellH * 0.35f, cellH * 0.35f);
+
+            // Skip if outside circle
+            if (ox * ox + oy * oy > radius * radius) continue;
+
+            int sx = Mathf.RoundToInt(epicenter.x + ox);
+            int sy = Mathf.RoundToInt(epicenter.y + oy);
+            if (sx < 0 || sx >= w || sy < 0 || sy >= h) continue;
+            if (!mapGenerator.IsLand(sx, sy)) continue;
+
+            float angle = Random.Range(0f, Mathf.PI * 2f);
+            int   len   = Mathf.RoundToInt(radius * Random.Range(0.3f, 0.7f));
+
+            WalkCrack(new Vector2Int(sx, sy), angle, len, crackColor,
+                      0, maxBranchDepth, branchChance, epicenter, radius, w, h, crackedTiles);
+            placed++;
+        }
+
+        // Fill remaining if grid didn't give enough (small islands)
+        while (placed < numCracks)
+        {
+            float a  = Random.Range(0f, Mathf.PI * 2f);
+            float r  = Random.Range(0f, radius);
+            int   sx = Mathf.RoundToInt(epicenter.x + Mathf.Cos(a) * r);
+            int   sy = Mathf.RoundToInt(epicenter.y + Mathf.Sin(a) * r);
+            if (sx < 0 || sx >= w || sy < 0 || sy >= h || !mapGenerator.IsLand(sx, sy))
+            { placed++; continue; }
+
+            float angle = Random.Range(0f, Mathf.PI * 2f);
+            int   len   = Mathf.RoundToInt(radius * Random.Range(0.25f, 0.55f));
+            WalkCrack(new Vector2Int(sx, sy), angle, len, crackColor,
+                      0, maxBranchDepth, branchChance, epicenter, radius, w, h, crackedTiles);
+            placed++;
         }
 
         mapTexture.Apply();
-
-        // Keep surface sprite reference in sync for UndergroundMapManager
-        if (UndergroundMapManager.Instance != null)
-            UndergroundMapManager.Instance.RefreshSurfaceSprite();
+        UndergroundMapManager.Instance?.RefreshSurfaceSprite();
+        return crackedTiles;
     }
 
     // -------------------------------------------------------------------------
-    // SHORE DISTANCE FIELD
+    // CRACK WALK — sharp, thin, no blur
     // -------------------------------------------------------------------------
+
+    void WalkCrack(
+        Vector2Int          start,
+        float               angle,
+        int                 length,
+        Color               crackColor,
+        int                 depth,
+        int                 maxDepth,
+        float               branchChance,
+        Vector2Int          epicenter,
+        int                 radius,
+        int                 w, int h,
+        HashSet<Vector2Int> crackedTiles)
+    {
+        Vector2 pos    = start;
+        int     r2     = radius * radius;
+        float   stepSz = 1f; // step 1 pixel at a time for sharp lines
+
+        for (int step = 0; step < length; step++)
+        {
+            int cx = Mathf.RoundToInt(pos.x);
+            int cy = Mathf.RoundToInt(pos.y);
+
+            if (cx < 0 || cx >= w || cy < 0 || cy >= h) break;
+            if (!mapGenerator.IsLand(cx, cy)) break;
+
+            // Stay within earthquake circle
+            int ddx = cx - epicenter.x, ddy = cy - epicenter.y;
+            if (ddx * ddx + ddy * ddy > r2) break;
+
+            // Paint the crack pixel very dark — no alpha blending, sharp edge
+            mapTexture.SetPixel(cx, cy, crackColor);
+            crackedTiles.Add(new Vector2Int(cx, cy));
+
+            // Paint a single-pixel dark border on ONE perpendicular side for depth
+            float px = -Mathf.Sin(angle), py = Mathf.Cos(angle);
+            int bx = cx + Mathf.RoundToInt(px), by = cy + Mathf.RoundToInt(py);
+            if (bx >= 0 && bx < w && by >= 0 && by < h && mapGenerator.IsLand(bx, by))
+            {
+                Color border = Color.Lerp(crackColor, mapTexture.GetPixel(bx, by), 0.55f);
+                mapTexture.SetPixel(bx, by, border);
+            }
+
+            // Branch — sharp angle fork
+            if (depth < maxDepth && Random.value < branchChance)
+            {
+                float forkAngle = angle + (Random.value > 0.5f ? 1f : -1f)
+                                        * Random.Range(0.5f, 1.1f);
+                int forkLen = Mathf.RoundToInt(length * Random.Range(0.3f, 0.6f));
+                WalkCrack(new Vector2Int(cx, cy), forkAngle, forkLen, crackColor,
+                          depth + 1, maxDepth, branchChance * 0.5f,
+                          epicenter, radius, w, h, crackedTiles);
+            }
+
+            // Mostly straight with occasional sharp kink — realistic crack geometry
+            if (Random.value < 0.06f)
+                angle += Random.Range(-0.7f, 0.7f);  // sharp kink
+            else
+                angle += Random.Range(-0.08f, 0.08f); // very gentle drift
+
+            pos += new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * stepSz;
+        }
+    }
+
+    // =========================================================================
+    // SHORE DISTANCE FIELD
+    // =========================================================================
 
     void BuildShoreDistField(int w, int h)
     {
@@ -137,30 +268,29 @@ public class MapPainter : MonoBehaviour
 
         int[] dx4 = { 1, -1, 0, 0 };
         int[] dy4 = { 0, 0, 1, -1 };
-
-        Queue<Vector2Int> queue = new Queue<Vector2Int>();
+        var queue = new Queue<Vector2Int>();
 
         for (int x = 0; x < w; x++)
-            for (int y = 0; y < h; y++)
+        for (int y = 0; y < h; y++)
+        {
+            if (!mapGenerator.IsLand(x, y)) continue;
+            for (int i = 0; i < 4; i++)
             {
-                if (!mapGenerator.IsLand(x, y)) continue;
-                for (int i = 0; i < 4; i++)
+                int nx = x + dx4[i], ny = y + dy4[i];
+                if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+                if (!mapGenerator.IsLand(nx, ny))
                 {
-                    int nx = x + dx4[i], ny = y + dy4[i];
-                    if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
-                    if (!mapGenerator.IsLand(nx, ny))
-                    {
-                        shoreDistField[x, y] = 0;
-                        queue.Enqueue(new Vector2Int(x, y));
-                        break;
-                    }
+                    shoreDistField[x, y] = 0;
+                    queue.Enqueue(new Vector2Int(x, y));
+                    break;
                 }
             }
+        }
 
         while (queue.Count > 0)
         {
             var pos = queue.Dequeue();
-            int d = shoreDistField[pos.x, pos.y];
+            int d   = shoreDistField[pos.x, pos.y];
             for (int i = 0; i < 4; i++)
             {
                 int nx = pos.x + dx4[i], ny = pos.y + dy4[i];
@@ -173,40 +303,38 @@ public class MapPainter : MonoBehaviour
         }
     }
 
-    // -------------------------------------------------------------------------
+    // =========================================================================
     // BEACH MAP
-    // -------------------------------------------------------------------------
+    // =========================================================================
 
     void BuildBeachMap(int w, int h)
     {
         BuildShoreDistField(w, h);
-
-        beachDistMap = new float[w, h];
+        beachDistMap    = new float[w, h];
         float beachSeed = 7777f;
 
         for (int x = 0; x < w; x++)
-            for (int y = 0; y < h; y++)
-            {
-                beachDistMap[x, y] = -1f;
-                if (!mapGenerator.IsLand(x, y)) continue;
-                if (mapGenerator.IsSeaRock(x, y)) continue;
+        for (int y = 0; y < h; y++)
+        {
+            beachDistMap[x, y] = -1f;
+            if (!mapGenerator.IsLand(x, y)) continue;
+            if (mapGenerator.IsSeaRock(x, y)) continue;
 
-                int sd = shoreDistField[x, y];
-                if (sd == int.MaxValue || sd > beachWidth) continue;
+            int sd = shoreDistField[x, y];
+            if (sd == int.MaxValue || sd > beachWidth) continue;
 
-                float selector = Mathf.PerlinNoise(x * 0.015f + beachSeed, y * 0.015f + beachSeed);
+            float selector   = Mathf.PerlinNoise(x * 0.015f + beachSeed, y * 0.015f + beachSeed);
+            float inlandFade = 1f - ((float)sd / beachWidth);
+            selector        *= inlandFade;
 
-                float inlandFade = 1f - ((float)sd / beachWidth);
-                selector *= inlandFade;
-
-                if (selector > (1f - beachChance))
-                    beachDistMap[x, y] = (float)sd / beachWidth;
-            }
+            if (selector > (1f - beachChance))
+                beachDistMap[x, y] = (float)sd / beachWidth;
+        }
     }
 
-    // -------------------------------------------------------------------------
+    // =========================================================================
     // BORDER DISTANCE FIELD
-    // -------------------------------------------------------------------------
+    // =========================================================================
 
     void BuildBorderDistanceField(int w, int h)
     {
@@ -217,51 +345,42 @@ public class MapPainter : MonoBehaviour
         int[,] sourceOther = new int[w, h];
 
         for (int x = 0; x < w; x++)
-            for (int y = 0; y < h; y++)
-            {
-                dist[x, y]        = int.MaxValue;
-                sourceOther[x, y] = 0;
-            }
+        for (int y = 0; y < h; y++)
+        { dist[x, y] = int.MaxValue; sourceOther[x, y] = 0; }
 
         int[] dx4 = { 1, -1, 0, 0 };
         int[] dy4 = { 0, 0, 1, -1 };
-
-        Queue<Vector2Int> queue = new Queue<Vector2Int>();
+        var queue = new Queue<Vector2Int>();
 
         for (int x = 0; x < w; x++)
-            for (int y = 0; y < h; y++)
+        for (int y = 0; y < h; y++)
+        {
+            if (!mapGenerator.IsLand(x, y)) continue;
+            int myBiome = mapGenerator.GetBiome(x, y);
+            if (myBiome == 5) continue;
+
+            int foundOther = 0;
+            for (int i = 0; i < 4; i++)
             {
-                if (!mapGenerator.IsLand(x, y)) continue;
-                int myBiome = mapGenerator.GetBiome(x, y);
-                if (myBiome == 5) continue;
-
-                int foundOtherBiome = 0;
-                for (int i = 0; i < 4; i++)
-                {
-                    int nx = x + dx4[i], ny = y + dy4[i];
-                    if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
-                    if (!mapGenerator.IsLand(nx, ny)) continue;
-
-                    int neighborBiome = mapGenerator.GetBiome(nx, ny);
-                    if (neighborBiome == 5) continue;
-                    if (neighborBiome != myBiome)
-                    {
-                        foundOtherBiome = neighborBiome;
-                        break;
-                    }
-                }
-
-                if (foundOtherBiome != 0)
-                {
-                    dist[x, y]        = 0;
-                    sourceOther[x, y] = foundOtherBiome;
-                    queue.Enqueue(new Vector2Int(x, y));
-                }
+                int nx = x + dx4[i], ny = y + dy4[i];
+                if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+                if (!mapGenerator.IsLand(nx, ny)) continue;
+                int nb = mapGenerator.GetBiome(nx, ny);
+                if (nb == 5) continue;
+                if (nb != myBiome) { foundOther = nb; break; }
             }
+
+            if (foundOther != 0)
+            {
+                dist[x, y]        = 0;
+                sourceOther[x, y] = foundOther;
+                queue.Enqueue(new Vector2Int(x, y));
+            }
+        }
 
         while (queue.Count > 0)
         {
-            Vector2Int pos = queue.Dequeue();
+            var pos     = queue.Dequeue();
             int d       = dist[pos.x, pos.y];
             int other   = sourceOther[pos.x, pos.y];
             int myBiome = mapGenerator.GetBiome(pos.x, pos.y);
@@ -273,7 +392,6 @@ public class MapPainter : MonoBehaviour
                 if (!mapGenerator.IsLand(nx, ny)) continue;
                 if (mapGenerator.GetBiome(nx, ny) != myBiome) continue;
                 if (dist[nx, ny] <= d + 1) continue;
-
                 dist[nx, ny]        = d + 1;
                 sourceOther[nx, ny] = other;
                 queue.Enqueue(new Vector2Int(nx, ny));
@@ -281,18 +399,17 @@ public class MapPainter : MonoBehaviour
         }
 
         for (int x = 0; x < w; x++)
-            for (int y = 0; y < h; y++)
-            {
-                borderDist[x, y]   = dist[x, y] == int.MaxValue
-                                     ? 1f
-                                     : Mathf.Clamp01((float)dist[x, y] / transitionWidth);
-                nearestOther[x, y] = sourceOther[x, y];
-            }
+        for (int y = 0; y < h; y++)
+        {
+            borderDist[x, y]   = dist[x, y] == int.MaxValue
+                                 ? 1f : Mathf.Clamp01((float)dist[x, y] / transitionWidth);
+            nearestOther[x, y] = sourceOther[x, y];
+        }
     }
 
-    // -------------------------------------------------------------------------
-    // LAND PAINTING WITH TRANSITION
-    // -------------------------------------------------------------------------
+    // =========================================================================
+    // LAND PAINTING
+    // =========================================================================
 
     Color PaintLandWithTransition(int x, int y, float seed)
     {
@@ -300,60 +417,47 @@ public class MapPainter : MonoBehaviour
         float d          = borderDist[x, y];
         int   otherBiome = nearestOther[x, y];
 
-        if (myBiome == 5)
-            return PaintSeaRock(x, y, seed);
+        if (myBiome == 5) return PaintSeaRock(x, y, seed);
 
         float beachD = beachDistMap[x, y];
         if (beachD >= 0f)
         {
             Color beachColor  = PaintBeach(x, y, seed);
             float blendT      = Mathf.SmoothStep(0f, 1f, beachD);
-            Color regionColor = GetBiomeColor(myBiome, x, y, seed);
-            return Color.Lerp(beachColor, regionColor, blendT);
+            return Color.Lerp(beachColor, GetBiomeColor(myBiome, x, y, seed), blendT);
         }
 
-        if (d >= 1f || otherBiome == 0)
-            return GetBiomeColor(myBiome, x, y, seed);
-
-        if (myBiome > otherBiome)
-            return GetBiomeColor(myBiome, x, y, seed);
+        if (d >= 1f || otherBiome == 0) return GetBiomeColor(myBiome, x, y, seed);
+        if (myBiome > otherBiome)       return GetBiomeColor(myBiome, x, y, seed);
 
         float warp  = Perlin(x, y, seed + 3000f, 0.05f) * 0.4f - 0.2f;
         float t     = Mathf.Clamp01(d + warp);
         float chaos = Perlin(x, y, seed + 4000f, 0.09f) * 0.3f - 0.15f;
-        t = Mathf.Clamp01(t + chaos);
-        t = Mathf.SmoothStep(0f, 1f, t);
+        t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t + chaos));
 
-        Color myColor    = GetBiomeColor(myBiome,    x, y, seed);
-        Color otherColor = GetBiomeColor(otherBiome, x, y, seed);
-
-        return Color.Lerp(otherColor, myColor, t);
+        return Color.Lerp(GetBiomeColor(otherBiome, x, y, seed), GetBiomeColor(myBiome, x, y, seed), t);
     }
 
     Color GetBiomeColor(int biome, int x, int y, float seed)
     {
         switch (biome)
         {
-            case 1: return PaintUrban(x, y, seed);
-            case 2: return PaintCities(x, y, seed);
-            case 3: return PaintIndustrial(x, y, seed);
-            case 4: return PaintAgricultural(x, y, seed);
-            case 5: return PaintSeaRock(x, y, seed);
+            case 1:  return PaintUrban(x, y, seed);
+            case 2:  return PaintCities(x, y, seed);
+            case 3:  return PaintIndustrial(x, y, seed);
+            case 4:  return PaintAgricultural(x, y, seed);
+            case 5:  return PaintSeaRock(x, y, seed);
             default: return settings.waterDeep;
         }
     }
 
-    // -------------------------------------------------------------------------
+    // =========================================================================
     // BIOME PAINT METHODS
-    // -------------------------------------------------------------------------
+    // =========================================================================
 
     Color PaintBeach(int x, int y, float seed)
     {
-        float n1 = Mathf.PerlinNoise(x * 0.025f + seed + 2000f, y * 0.025f + seed + 2000f);
-        float n2 = Mathf.PerlinNoise(x * 0.06f  + seed + 2040f, y * 0.06f  + seed + 2040f) * 0.5f;
-        float n3 = Mathf.PerlinNoise(x * 0.13f  + seed + 2080f, y * 0.13f  + seed + 2080f) * 0.25f;
-        float n  = (n1 + n2 + n3) / 1.75f;
-
+        float n = MultiNoise(x, y, seed + 2000f, 0.025f, 0.06f, 0.13f);
         if (n < 0.38f) return settings.beachDark;
         if (n < 0.46f) return Color.Lerp(settings.beachDark, settings.beachLight, 0.33f);
         if (n < 0.56f) return settings.beachLight;
@@ -363,11 +467,7 @@ public class MapPainter : MonoBehaviour
 
     Color PaintUrban(int x, int y, float seed)
     {
-        float n1 = Mathf.PerlinNoise(x * 0.018f + seed,       y * 0.018f + seed);
-        float n2 = Mathf.PerlinNoise(x * 0.045f + seed + 40f, y * 0.045f + seed + 40f) * 0.5f;
-        float n3 = Mathf.PerlinNoise(x * 0.11f  + seed + 80f, y * 0.11f  + seed + 80f) * 0.25f;
-        float n  = (n1 + n2 + n3) / 1.75f;
-
+        float n = MultiNoise(x, y, seed, 0.018f, 0.045f, 0.11f);
         if (n < 0.35f) return settings.urbanDark;
         if (n < 0.42f) return Color.Lerp(settings.urbanDark, settings.urbanLight, 0.33f);
         if (n < 0.52f) return settings.urbanLight;
@@ -377,11 +477,7 @@ public class MapPainter : MonoBehaviour
 
     Color PaintAgricultural(int x, int y, float seed)
     {
-        float n1 = Mathf.PerlinNoise(x * 0.022f + seed + 100f, y * 0.022f + seed + 100f);
-        float n2 = Mathf.PerlinNoise(x * 0.055f + seed + 140f, y * 0.055f + seed + 140f) * 0.5f;
-        float n3 = Mathf.PerlinNoise(x * 0.13f  + seed + 180f, y * 0.13f  + seed + 180f) * 0.25f;
-        float n  = (n1 + n2 + n3) / 1.75f;
-
+        float n = MultiNoise(x, y, seed + 100f, 0.022f, 0.055f, 0.13f);
         if (n < 0.32f) return settings.agriculturalDark;
         if (n < 0.40f) return Color.Lerp(settings.agriculturalDark, settings.agriculturalLight, 0.33f);
         if (n < 0.55f) return settings.agriculturalLight;
@@ -391,11 +487,7 @@ public class MapPainter : MonoBehaviour
 
     Color PaintCities(int x, int y, float seed)
     {
-        float n1 = Mathf.PerlinNoise(x * 0.014f + seed + 300f, y * 0.014f + seed + 300f);
-        float n2 = Mathf.PerlinNoise(x * 0.038f + seed + 340f, y * 0.038f + seed + 340f) * 0.5f;
-        float n3 = Mathf.PerlinNoise(x * 0.09f  + seed + 380f, y * 0.09f  + seed + 380f) * 0.25f;
-        float n  = (n1 + n2 + n3) / 1.75f;
-
+        float n = MultiNoise(x, y, seed + 300f, 0.014f, 0.038f, 0.09f);
         if (n < 0.38f) return settings.citiesDark;
         if (n < 0.46f) return Color.Lerp(settings.citiesDark, settings.citiesLight, 0.33f);
         if (n < 0.56f) return settings.citiesLight;
@@ -405,14 +497,9 @@ public class MapPainter : MonoBehaviour
 
     Color PaintIndustrial(int x, int y, float seed)
     {
-        float n1 = Mathf.PerlinNoise(x * 0.020f + seed + 600f, y * 0.020f + seed + 600f);
-        float n2 = Mathf.PerlinNoise(x * 0.055f + seed + 640f, y * 0.055f + seed + 640f) * 0.5f;
-        float n3 = Mathf.PerlinNoise(x * 0.14f  + seed + 680f, y * 0.14f  + seed + 680f) * 0.25f;
-        float n  = (n1 + n2 + n3) / 1.75f;
-
-        float crack = Mathf.PerlinNoise(x * 0.06f + seed + 700f, y * 0.06f + seed + 700f);
-        if (crack > 0.76f) return settings.industrialCrack;
-
+        float n = MultiNoise(x, y, seed + 600f, 0.020f, 0.055f, 0.14f);
+        if (Mathf.PerlinNoise(x * 0.06f + seed + 700f, y * 0.06f + seed + 700f) > 0.76f)
+            return settings.industrialCrack;
         if (n < 0.36f) return settings.industrialDark;
         if (n < 0.44f) return Color.Lerp(settings.industrialDark, settings.industrialLight, 0.33f);
         if (n < 0.54f) return settings.industrialLight;
@@ -422,14 +509,9 @@ public class MapPainter : MonoBehaviour
 
     Color PaintSeaRock(int x, int y, float seed)
     {
-        float n1 = Mathf.PerlinNoise(x * 0.025f + seed + 800f, y * 0.025f + seed + 800f);
-        float n2 = Mathf.PerlinNoise(x * 0.065f + seed + 840f, y * 0.065f + seed + 840f) * 0.5f;
-        float n3 = Mathf.PerlinNoise(x * 0.15f  + seed + 880f, y * 0.15f  + seed + 880f) * 0.25f;
-        float n  = (n1 + n2 + n3) / 1.75f;
-
-        float crack = Mathf.PerlinNoise(x * 0.08f + seed + 900f, y * 0.08f + seed + 900f);
-        if (crack > 0.74f) return settings.seaRockCrack;
-
+        float n = MultiNoise(x, y, seed + 800f, 0.025f, 0.065f, 0.15f);
+        if (Mathf.PerlinNoise(x * 0.08f + seed + 900f, y * 0.08f + seed + 900f) > 0.74f)
+            return settings.seaRockCrack;
         if (n < 0.36f) return settings.seaRockDark;
         if (n < 0.44f) return Color.Lerp(settings.seaRockDark, settings.seaRockLight, 0.33f);
         if (n < 0.54f) return settings.seaRockLight;
@@ -437,9 +519,9 @@ public class MapPainter : MonoBehaviour
         return settings.seaRockDark;
     }
 
-    // -------------------------------------------------------------------------
+    // =========================================================================
     // WATER
-    // -------------------------------------------------------------------------
+    // =========================================================================
 
     void BuildWaterDistanceField(int w, int h)
     {
@@ -447,22 +529,21 @@ public class MapPainter : MonoBehaviour
         int[,] dist  = new int[w, h];
 
         for (int x = 0; x < w; x++)
-            for (int y = 0; y < h; y++)
-                dist[x, y] = mapGenerator.IsLand(x, y) ? 0 : -1;
+        for (int y = 0; y < h; y++)
+            dist[x, y] = mapGenerator.IsLand(x, y) ? 0 : -1;
 
-        Queue<Vector2Int> queue = new Queue<Vector2Int>();
+        var queue = new Queue<Vector2Int>();
         for (int x = 0; x < w; x++)
-            for (int y = 0; y < h; y++)
-                if (mapGenerator.IsLand(x, y))
-                    queue.Enqueue(new Vector2Int(x, y));
+        for (int y = 0; y < h; y++)
+            if (mapGenerator.IsLand(x, y)) queue.Enqueue(new Vector2Int(x, y));
 
         int[] dx4 = { 1, -1, 0, 0 };
         int[] dy4 = { 0, 0, 1, -1 };
 
         while (queue.Count > 0)
         {
-            Vector2Int pos = queue.Dequeue();
-            int d = dist[pos.x, pos.y];
+            var pos = queue.Dequeue();
+            int d   = dist[pos.x, pos.y];
             for (int i = 0; i < 4; i++)
             {
                 int nx = pos.x + dx4[i], ny = pos.y + dy4[i];
@@ -474,8 +555,8 @@ public class MapPainter : MonoBehaviour
         }
 
         for (int x = 0; x < w; x++)
-            for (int y = 0; y < h; y++)
-                waterDistMap[x, y] = Mathf.Clamp01((float)dist[x, y] / waterDepthRange);
+        for (int y = 0; y < h; y++)
+            waterDistMap[x, y] = Mathf.Clamp01((float)dist[x, y] / waterDepthRange);
     }
 
     Color PaintWater(int x, int y, float seed, int w, int h)
@@ -486,14 +567,22 @@ public class MapPainter : MonoBehaviour
         float radialDist = Mathf.Clamp01(Mathf.Sqrt(cx * cx + cy * cy));
         float depth      = Mathf.Max(coastDist, radialDist);
         float jitter     = Perlin(x, y, seed + 1200f, 0.04f) * 0.18f - 0.09f;
-        depth = Mathf.Clamp01(depth + jitter);
-        float stepped = Mathf.Floor(depth * waterDepthSteps) / (waterDepthSteps - 1);
+        depth            = Mathf.Clamp01(depth + jitter);
+        float stepped    = Mathf.Floor(depth * waterDepthSteps) / (waterDepthSteps - 1);
         return Color.Lerp(settings.waterShallow, settings.waterDeep, Mathf.Clamp01(stepped));
     }
 
-    // -------------------------------------------------------------------------
+    // =========================================================================
     // HELPERS
-    // -------------------------------------------------------------------------
+    // =========================================================================
+
+    static float MultiNoise(int x, int y, float seed, float s1, float s2, float s3)
+    {
+        float n1 = Mathf.PerlinNoise(x * s1 + seed, y * s1 + seed);
+        float n2 = Mathf.PerlinNoise(x * s2 + seed, y * s2 + seed) * 0.5f;
+        float n3 = Mathf.PerlinNoise(x * s3 + seed, y * s3 + seed) * 0.25f;
+        return (n1 + n2 + n3) / 1.75f;
+    }
 
     static float Perlin(int x, int y, float seed, float scale)
         => Mathf.PerlinNoise(x * scale + seed, y * scale + seed);
