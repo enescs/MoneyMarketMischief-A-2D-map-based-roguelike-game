@@ -286,6 +286,13 @@ Event icindeki tek bir secenek. Serializable sinif.
 | `chainInfluenceStat` | Dallanma secimini etkileyen stat (ChainInfluenceStat: JustLuck / Wealth / Suspicion / Reputation / PoliticalInfluence) |
 | `chainThreshold0/1/2` | Stat aralik esikleri (varsayilan 20/50/75, 4 aralik olusturur) |
 | `chainBranches` | Dallanma hedefleri listesi (List\<ChainBranch\>). Bos = chain biter. Dolu = sonraki chain event bu listeden secilir. Her branch'te 4 aralik agirligi (weightRange0-3). |
+| **Zincir Sayac** | |
+| `incrementsChainCounter` | Bu choice secildiginde zincir sayacini artirir |
+| `chainCounterKey` | Sayac adi (serbest string, orn. "acele", "yavasla") |
+| `chainCounterIncrement` | Artis miktari (varsayilan 1) |
+| `hasEarlyChainTrigger` | Sayac esige ulasirsa zinciri atlayip direkt hedef event'e gecer |
+| `earlyTriggerThreshold` | Erken tetikleme esik degeri |
+| `earlyTriggerEvent` | Esik asildikca tetiklenecek event |
 | **Rakip Isgal Flagleri** (foldout) | |
 | `acceptsRivalDeal` | Rakip isgal anlasmasini kabul eder |
 | `rejectsRivalDeal` | Rakip isgal anlasmasini reddeder → kose kapma yarisi baslar |
@@ -371,7 +378,11 @@ Bir choice secildiginde siradaki chain event'in olasi hedeflerinden birini tanim
 | `weightRange2` | Aralik 2 agirligi |
 | `weightRange3` | Aralik 3 agirligi |
 | `triggersAsImmediateEvent` | true ise secilen branch zincir devami yerine aninda event olarak tetiklenir. Zincir biter, event standalone olarak gosterilir. |
-| `immediateEventDelay` | Aninda event gecikmesi (0-5 saniye). triggersAsImmediateEvent aktifken gorunur. 0 = aninda, N = N saniye sonra tetiklenir. |
+| `immediateEventDelay` | Aninda event gecikmesi (0-10 saniye). triggersAsImmediateEvent aktifken gorunur. 0 = aninda, N = N saniye sonra tetiklenir. |
+| `hasCounterCondition` | true ise bu dal sadece zincir sayac kosulu saglandiginda secilebilir |
+| `counterConditionKey` | Kontrol edilecek sayac adi (choice'taki chainCounterKey ile ayni string) |
+| `minCounterValue` | Minimum sayac degeri (dahil) |
+| `maxCounterValue` | Maksimum sayac degeri (-1 = sinirsiz) |
 
 **Secim mantigi:**
 1. Stat'in mevcut yuzdesi (0-100) hesaplanir

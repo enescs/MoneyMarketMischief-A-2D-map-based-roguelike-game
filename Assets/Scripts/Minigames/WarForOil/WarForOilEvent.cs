@@ -155,6 +155,14 @@ public class WarForOilEventChoice
     [Range(0f, 1f)] public float probDismissChance; //event yok olma olasılığı (support=50 için base değer)
     public float probWarEndDelay; //savaş biterse gecikme süresi (saniye)
 
+    //zincir sayaç sistemi — zincir boyunca seçimleri takip eder
+    public bool incrementsChainCounter; //bu choice seçilince zincir sayacını artırır
+    public string chainCounterKey; //sayaç adı (ör. "acele", "yavasla")
+    public int chainCounterIncrement = 1; //artış miktarı
+    public bool hasEarlyChainTrigger; //sayaç eşiğe ulaşırsa zinciri atlayıp direkt bu event'e geç
+    public int earlyTriggerThreshold; //erken tetikleme eşiği
+    public WarForOilEvent earlyTriggerEvent; //erken tetiklenecek event
+
     //zincir arası tick etkisi — bir sonraki chain eventine kadar her event aralığında uygulanır
     public bool hasChainTickEffect; //true ise dallanma sonrası her event tick'inde stat etkisi uygulanır
     public ChainTickStatType chainTickStat; //etkilenecek stat
@@ -289,6 +297,10 @@ public class ChainBranch
     [Range(0f, 1f)] public float weightRange3; //aralık 3 ağırlığı
     public bool triggersAsImmediateEvent; //true ise zincir devamı yerine anında event olarak tetiklenir (zincir biter)
     [Range(0f, 10f)] public float immediateEventDelay; //anında event gecikmesi (0 = anında, saniye cinsinden)
+    public bool hasCounterCondition; //true ise bu dal sadece sayaç koşulu sağlandığında seçilebilir
+    public string counterConditionKey; //kontrol edilecek sayaç adı
+    public int minCounterValue; //minimum sayaç değeri (dahil)
+    public int maxCounterValue = -1; //maksimum sayaç değeri (-1 = sınırsız)
 }
 
 /// <summary>

@@ -67,6 +67,7 @@ public class WomanProcessManager : MonoBehaviour
     private float pendingWomanChainThreshold2;
     private bool pendingWomanChainCanEnd;
     private float pendingWomanChainEndWeight;
+    private Dictionary<string, int> womanChainCounters = new Dictionary<string, int>();
 
     //events — UI dinleyecek
     public static event Action OnWomanProcessStarted; //süreç başladı
@@ -434,6 +435,29 @@ public class WomanProcessManager : MonoBehaviour
             return;
         }
 
+        //zincir sayaç artırma
+        if (isInWomanChain && choice.incrementsChainCounter && !string.IsNullOrEmpty(choice.chainCounterKey))
+        {
+            if (!womanChainCounters.ContainsKey(choice.chainCounterKey))
+                womanChainCounters[choice.chainCounterKey] = 0;
+            womanChainCounters[choice.chainCounterKey] += choice.chainCounterIncrement;
+        }
+
+        //zincir erken tetikleme — sayaç eşiğe ulaştıysa zinciri atlayıp direkt event'e geç
+        if (isInWomanChain && choice.hasEarlyChainTrigger && choice.earlyTriggerEvent != null
+            && !string.IsNullOrEmpty(choice.chainCounterKey))
+        {
+            int currentCount = 0;
+            womanChainCounters.TryGetValue(choice.chainCounterKey, out currentCount);
+            if (currentCount >= choice.earlyTriggerThreshold)
+            {
+                WarForOilEvent earlyEvent = choice.earlyTriggerEvent;
+                EndWomanChain();
+                ShowWomanEvent(earlyEvent);
+                return;
+            }
+        }
+
         //zincir dallanması kontrolü
         if (choice.chainBranches != null && choice.chainBranches.Count > 0)
         {
@@ -776,6 +800,21 @@ public class WomanProcessManager : MonoBehaviour
                 weights[i] = 0f;
                 continue;
             }
+
+            //zincir sayaç koşulu — sağlanmıyorsa bu dal seçilemez
+            if (pendingWomanChainBranches[i].hasCounterCondition)
+            {
+                int counterVal = 0;
+                if (!string.IsNullOrEmpty(pendingWomanChainBranches[i].counterConditionKey))
+                    womanChainCounters.TryGetValue(pendingWomanChainBranches[i].counterConditionKey, out counterVal);
+                bool meetsMin = counterVal >= pendingWomanChainBranches[i].minCounterValue;
+                bool meetsMax = pendingWomanChainBranches[i].maxCounterValue < 0 || counterVal <= pendingWomanChainBranches[i].maxCounterValue;
+                if (!meetsMin || !meetsMax)
+                {
+                    weights[i] = 0f;
+                    continue;
+                }
+            }
             float w = GetBranchWeight(pendingWomanChainBranches[i], rangeIndex);
             if (w < 0f) w = 0f;
             weights[i] = w;
@@ -872,6 +911,7 @@ public class WomanProcessManager : MonoBehaviour
     {
         isInWomanChain = false;
         pendingWomanChainBranches = null;
+        womanChainCounters.Clear();
     }
 
     /// <summary>

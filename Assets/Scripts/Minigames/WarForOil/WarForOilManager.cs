@@ -51,10 +51,9 @@ public class WarForOilManager : MonoBehaviour
     private float pendingChainThreshold0; //1. eşik
     private float pendingChainThreshold1; //2. eşik
     private float pendingChainThreshold2; //3. eşik
-    private int chainCycleCounter; //3'lü döngüdeki pozisyon (0,1,2)
-    private int chainSlotsRemaining; //bu döngüde kalan chain event sayısı
     private bool currentEventIsChainEvent; //şu anki event chain slotundan mı geldi (random slot eventleri chain'i bitirmesin)
     private float pendingChainEndWeight; //dallanma seçiminde chain bitme ağırlığı (0 = bitme yok)
+    private Dictionary<string, int> chainCounters = new Dictionary<string, int>(); //zincir sayaçları
     private bool hasActiveChainTickEffect; //chain arası tick etkisi aktif mi
     private ChainTickStatType activeChainTickStat; //tick etkisinin hedef stat'ı
     private float activeChainTickAmount; //tick başına uygulanacak miktar
@@ -425,6 +424,29 @@ public class WarForOilManager : MonoBehaviour
         //zincirdeyken Head gelirse (dallanma ile) → zincirin parçası olarak devam eder, yeni zincir başlamaz
         if (!isInChain && resolvedEvent.chainRole == ChainRole.Head)
             StartChain(resolvedEvent);
+
+        //zincir sayaç artırma
+        if (isInChain && choice.incrementsChainCounter && !string.IsNullOrEmpty(choice.chainCounterKey))
+        {
+            if (!chainCounters.ContainsKey(choice.chainCounterKey))
+                chainCounters[choice.chainCounterKey] = 0;
+            chainCounters[choice.chainCounterKey] += choice.chainCounterIncrement;
+        }
+
+        //zincir erken tetikleme — sayaç eşiğe ulaştıysa zinciri atlayıp direkt event'e geç
+        if (isInChain && choice.hasEarlyChainTrigger && choice.earlyTriggerEvent != null
+            && !string.IsNullOrEmpty(choice.chainCounterKey))
+        {
+            int currentCount = 0;
+            chainCounters.TryGetValue(choice.chainCounterKey, out currentCount);
+            if (currentCount >= choice.earlyTriggerThreshold)
+            {
+                WarForOilEvent earlyEvent = choice.earlyTriggerEvent;
+                EndChain();
+                TriggerEvent(earlyEvent);
+                return;
+            }
+        }
 
         //zincir dallanması — sadece chain'e ait eventlerde kontrol et (Head veya chain slotundan gelen)
         //random slotta gelen normal eventler chain'i etkilemez
@@ -983,8 +1005,7 @@ public class WarForOilManager : MonoBehaviour
         pendingChainThreshold0 = 0f;
         pendingChainThreshold1 = 0f;
         pendingChainThreshold2 = 0f;
-        chainCycleCounter = 0;
-        chainSlotsRemaining = 0;
+        chainCounters.Clear();
         eventCheckTimer = 0f; //zincir interval'ı hemen başlasın
 
         OnChainStarted?.Invoke();
@@ -1003,11 +1024,10 @@ public class WarForOilManager : MonoBehaviour
         pendingChainThreshold0 = 0f;
         pendingChainThreshold1 = 0f;
         pendingChainThreshold2 = 0f;
-        chainCycleCounter = 0;
-        chainSlotsRemaining = 0;
         currentEventIsChainEvent = false;
         pendingChainEndWeight = 0f;
         hasActiveChainTickEffect = false;
+        chainCounters.Clear();
         eventCheckTimer = 0f; //normal interval'a geri dön
 
         OnChainEnded?.Invoke();
@@ -1069,6 +1089,21 @@ public class WarForOilManager : MonoBehaviour
             {
                 weights[i] = 0f;
                 continue;
+            }
+
+            //zincir sayaç koşulu — sağlanmıyorsa bu dal seçilemez
+            if (pendingChainBranches[i].hasCounterCondition)
+            {
+                int counterVal = 0;
+                if (!string.IsNullOrEmpty(pendingChainBranches[i].counterConditionKey))
+                    chainCounters.TryGetValue(pendingChainBranches[i].counterConditionKey, out counterVal);
+                bool meetsMin = counterVal >= pendingChainBranches[i].minCounterValue;
+                bool meetsMax = pendingChainBranches[i].maxCounterValue < 0 || counterVal <= pendingChainBranches[i].maxCounterValue;
+                if (!meetsMin || !meetsMax)
+                {
+                    weights[i] = 0f;
+                    continue;
+                }
             }
             float w = GetBranchWeight(pendingChainBranches[i], rangeIndex);
             if (w < 0f) w = 0f;
@@ -2106,11 +2141,10 @@ public class WarForOilManager : MonoBehaviour
         pendingChainThreshold0 = 0f;
         pendingChainThreshold1 = 0f;
         pendingChainThreshold2 = 0f;
-        chainCycleCounter = 0;
-        chainSlotsRemaining = 0;
         currentEventIsChainEvent = false;
         pendingChainEndWeight = 0f;
         hasActiveChainTickEffect = false;
+        chainCounters.Clear();
         isCornerGrabRace = false;
         rivalInvasionTriggered = false;
         rivalCountry = null;

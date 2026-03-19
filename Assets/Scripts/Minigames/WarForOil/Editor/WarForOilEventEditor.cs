@@ -822,6 +822,21 @@ public class WarForOilEventEditor : Editor
                             branch.FindPropertyRelative("immediateEventDelay"),
                             0f, 10f, new GUIContent("Gecikme (sn)"));
                     }
+                    SerializedProperty hasCounterCond = branch.FindPropertyRelative("hasCounterCondition");
+                    EditorGUILayout.PropertyField(hasCounterCond, new GUIContent("Sayaç Koşulu"));
+                    if (hasCounterCond.boolValue)
+                    {
+                        EditorGUI.indentLevel++;
+                        EditorGUILayout.PropertyField(
+                            branch.FindPropertyRelative("counterConditionKey"),
+                            new GUIContent("Sayaç Adı"));
+                        EditorGUILayout.PropertyField(
+                            branch.FindPropertyRelative("minCounterValue"),
+                            new GUIContent("Min Değer"));
+                        SerializedProperty maxVal = branch.FindPropertyRelative("maxCounterValue");
+                        EditorGUILayout.PropertyField(maxVal, new GUIContent("Max Değer (-1 = sınırsız)"));
+                        EditorGUI.indentLevel--;
+                    }
                     EditorGUI.indentLevel--;
                     EditorGUILayout.Space(2);
                 }
@@ -838,6 +853,10 @@ public class WarForOilEventEditor : Editor
                 newBranch.FindPropertyRelative("weightRange3").floatValue = 0f;
                 newBranch.FindPropertyRelative("triggersAsImmediateEvent").boolValue = false;
                 newBranch.FindPropertyRelative("immediateEventDelay").floatValue = 0f;
+                newBranch.FindPropertyRelative("hasCounterCondition").boolValue = false;
+                newBranch.FindPropertyRelative("counterConditionKey").stringValue = "";
+                newBranch.FindPropertyRelative("minCounterValue").intValue = 0;
+                newBranch.FindPropertyRelative("maxCounterValue").intValue = -1;
             }
 
             //chain bitme şansı — dallanma varsa göster
@@ -853,6 +872,42 @@ public class WarForOilEventEditor : Editor
                     SerializedProperty endWeightProp = choice.FindPropertyRelative("chainEndWeight");
                     EditorGUILayout.Slider(endWeightProp, 0f, 1f, new GUIContent("Bitme Ağırlığı"));
                     endWeight = endWeightProp.floatValue;
+                    EditorGUI.indentLevel--;
+                }
+            }
+
+            //zincir sayaç sistemi — dallanma varsa göster
+            if (chainBranches.arraySize > 0)
+            {
+                EditorGUILayout.Space(2);
+                SerializedProperty incCounter = choice.FindPropertyRelative("incrementsChainCounter");
+                EditorGUILayout.PropertyField(incCounter, new GUIContent("Zincir Sayacı Artır"));
+                if (incCounter.boolValue)
+                {
+                    EditorGUI.indentLevel++;
+                    EditorGUILayout.PropertyField(
+                        choice.FindPropertyRelative("chainCounterKey"),
+                        new GUIContent("Sayaç Adı"));
+                    EditorGUILayout.PropertyField(
+                        choice.FindPropertyRelative("chainCounterIncrement"),
+                        new GUIContent("Artış Miktarı"));
+
+                    SerializedProperty hasEarly = choice.FindPropertyRelative("hasEarlyChainTrigger");
+                    EditorGUILayout.PropertyField(hasEarly, new GUIContent("Erken Tetikleme"));
+                    if (hasEarly.boolValue)
+                    {
+                        EditorGUI.indentLevel++;
+                        EditorGUILayout.PropertyField(
+                            choice.FindPropertyRelative("earlyTriggerThreshold"),
+                            new GUIContent("Eşik Değeri"));
+                        EditorGUILayout.PropertyField(
+                            choice.FindPropertyRelative("earlyTriggerEvent"),
+                            new GUIContent("Hedef Event"));
+                        EditorGUILayout.HelpBox(
+                            "Sayaç bu eşiğe ulaşırsa zincir atlanıp direkt hedef event tetiklenir.",
+                            MessageType.Info);
+                        EditorGUI.indentLevel--;
+                    }
                     EditorGUI.indentLevel--;
                 }
             }
@@ -1185,6 +1240,12 @@ public class WarForOilEventEditor : Editor
         choice.FindPropertyRelative("chainBranches").ClearArray();
         choice.FindPropertyRelative("chainCanEnd").boolValue = false;
         choice.FindPropertyRelative("chainEndWeight").floatValue = 1f;
+        choice.FindPropertyRelative("incrementsChainCounter").boolValue = false;
+        choice.FindPropertyRelative("chainCounterKey").stringValue = "";
+        choice.FindPropertyRelative("chainCounterIncrement").intValue = 1;
+        choice.FindPropertyRelative("hasEarlyChainTrigger").boolValue = false;
+        choice.FindPropertyRelative("earlyTriggerThreshold").intValue = 0;
+        choice.FindPropertyRelative("earlyTriggerEvent").objectReferenceValue = null;
         choice.FindPropertyRelative("hasChainTickEffect").boolValue = false;
         choice.FindPropertyRelative("chainTickStat").enumValueIndex = 0;
         choice.FindPropertyRelative("chainTickAmount").floatValue = 0f;
