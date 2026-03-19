@@ -8,6 +8,7 @@ public class WarForOilEvent : ScriptableObject
     public string id;
     [TextArea(1, 3)] public string displayName;
     [TextArea(2, 8)] public string description;
+    public bool useTypewriterEffect; //true ise açıklama harf harf akar, false ise direkt paragraf olarak gösterilir
 
     [Header("Koşullu Açıklamalar")]
     public List<ConditionalDescription> conditionalDescriptions; //hikaye bayrağına göre değişen açıklamalar
@@ -47,7 +48,6 @@ public class WarForOilEvent : ScriptableObject
     public float minObsession = 0f; //bu event sadece obsesyon bu değerin üstündeyken gelir (0 = sınırsız)
     public float maxObsession = 100f; //bu event sadece obsesyon bu değerin altındayken gelir (100 = sınırsız)
     public List<WarForOilEvent> blockedWomanProcessEvents; //bu event tetiklenince havuzdan/zincirlerden çıkarılacak eventler
-    public bool useTypewriterEffect; //true ise açıklama harf harf akar, false ise direkt paragraf olarak gösterilir
 
     //öncü event — kadın eventi tetiklenmeden önce bu event gösterilir, 4 saniye sonra asıl kadın eventi gelir
     public bool hasPrecursorEvent; //true ise bu kadın eventinin bir öncü eventi var

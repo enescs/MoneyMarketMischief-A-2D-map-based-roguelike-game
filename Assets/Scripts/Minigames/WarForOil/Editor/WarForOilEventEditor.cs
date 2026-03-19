@@ -36,7 +36,8 @@ public class WarForOilEventEditor : Editor
             "hasPrecursorEvent", "precursorEventType", "precursorWarEvent", "precursorRandomEvent",
             "chainRole", "blocksSubChainBranching", "alsoBlockedBranchEvents",
             "minWarTime", "maxWarTime",
-            "conditionalDescriptions"
+            "conditionalDescriptions",
+            "useTypewriterEffect"
         };
         if (serializedObject.FindProperty("useTypewriterEffect").boolValue)
             excludeList.Add("displayName");
@@ -87,6 +88,11 @@ public class WarForOilEventEditor : Editor
                 new GUIContent("Narrative"));
             EditorGUI.indentLevel--;
         }
+
+        //yazı makinesi efekti — açıklama harf harf akar
+        EditorGUILayout.PropertyField(
+            serializedObject.FindProperty("useTypewriterEffect"),
+            new GUIContent("Yazı Makinesi Efekti", "Açıklama harf harf akar. Kapalıysa direkt paragraf gösterilir."));
 
         //koşullu açıklamalar — hikaye bayrağına göre farklı açıklama
         SerializedProperty condDescs = serializedObject.FindProperty("conditionalDescriptions");
@@ -183,10 +189,6 @@ public class WarForOilEventEditor : Editor
             EditorGUILayout.PropertyField(
                 serializedObject.FindProperty("blockedWomanProcessEvents"),
                 new GUIContent("Yasaklanan Eventler"), true);
-
-            EditorGUILayout.PropertyField(
-                serializedObject.FindProperty("useTypewriterEffect"),
-                new GUIContent("Yazı Makinesi Efekti", "Açıklama harf harf akar. Kapalıysa direkt paragraf gösterilir."));
 
             //öncü event
             EditorGUILayout.Space(4);
