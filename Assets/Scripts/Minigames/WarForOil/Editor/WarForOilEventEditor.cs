@@ -828,21 +828,6 @@ public class WarForOilEventEditor : Editor
                             branch.FindPropertyRelative("immediateEventDelay"),
                             0f, 10f, new GUIContent("Gecikme (sn)"));
                     }
-                    SerializedProperty hasCounterCond = branch.FindPropertyRelative("hasCounterCondition");
-                    EditorGUILayout.PropertyField(hasCounterCond, new GUIContent("Sayaç Koşulu"));
-                    if (hasCounterCond.boolValue)
-                    {
-                        EditorGUI.indentLevel++;
-                        EditorGUILayout.PropertyField(
-                            branch.FindPropertyRelative("counterConditionKey"),
-                            new GUIContent("Sayaç Adı"));
-                        EditorGUILayout.PropertyField(
-                            branch.FindPropertyRelative("minCounterValue"),
-                            new GUIContent("Min Değer"));
-                        SerializedProperty maxVal = branch.FindPropertyRelative("maxCounterValue");
-                        EditorGUILayout.PropertyField(maxVal, new GUIContent("Max Değer (-1 = sınırsız)"));
-                        EditorGUI.indentLevel--;
-                    }
                     EditorGUI.indentLevel--;
                     EditorGUILayout.Space(2);
                 }
@@ -859,10 +844,6 @@ public class WarForOilEventEditor : Editor
                 newBranch.FindPropertyRelative("weightRange3").floatValue = 0f;
                 newBranch.FindPropertyRelative("triggersAsImmediateEvent").boolValue = false;
                 newBranch.FindPropertyRelative("immediateEventDelay").floatValue = 0f;
-                newBranch.FindPropertyRelative("hasCounterCondition").boolValue = false;
-                newBranch.FindPropertyRelative("counterConditionKey").stringValue = "";
-                newBranch.FindPropertyRelative("minCounterValue").intValue = 0;
-                newBranch.FindPropertyRelative("maxCounterValue").intValue = -1;
             }
 
             //chain bitme şansı — dallanma varsa göster
@@ -882,8 +863,101 @@ public class WarForOilEventEditor : Editor
                 }
             }
 
-            //zincir sayaç sistemi — dallanma varsa göster
+            //koşullu dallanma tanımı — choice seviyesinde tek koşul
             if (chainBranches.arraySize > 0)
+            {
+                EditorGUILayout.Space(2);
+                SerializedProperty hasCondBranch = choice.FindPropertyRelative("hasConditionalBranching");
+                EditorGUILayout.PropertyField(hasCondBranch, new GUIContent("Koşullu Dallanma"));
+                if (hasCondBranch.boolValue)
+                {
+                    EditorGUI.indentLevel++;
+                    EditorGUILayout.PropertyField(
+                        choice.FindPropertyRelative("branchCounterKey"),
+                        new GUIContent("Sayaç Adı"));
+                    EditorGUILayout.PropertyField(
+                        choice.FindPropertyRelative("branchCounterMin"),
+                        new GUIContent("Min Değer"));
+                    SerializedProperty maxVal = choice.FindPropertyRelative("branchCounterMax");
+                    EditorGUILayout.PropertyField(maxVal, new GUIContent("Max Değer (-1 = sınırsız)"));
+                    EditorGUILayout.HelpBox(
+                        "Sayaç bu aralıktaysa koşullu dallardan, değilse yukarıdaki normal dallardan seçilir.",
+                        MessageType.Info);
+
+                    //koşullu dallar listesi
+                    EditorGUILayout.Space(4);
+                    EditorGUILayout.LabelField("Koşullu Dallar", EditorStyles.boldLabel);
+                    SerializedProperty condBranches = choice.FindPropertyRelative("conditionalChainBranches");
+                    for (int cb = 0; cb < condBranches.arraySize; cb++)
+                    {
+                        SerializedProperty condBranch = condBranches.GetArrayElementAtIndex(cb);
+                        EditorGUILayout.BeginHorizontal();
+                        EditorGUILayout.PropertyField(
+                            condBranch.FindPropertyRelative("targetEvent"),
+                            new GUIContent("Hedef " + cb));
+                        if (GUILayout.Button("-", GUILayout.Width(20)))
+                        {
+                            condBranches.DeleteArrayElementAtIndex(cb);
+                            cb--;
+                        }
+                        EditorGUILayout.EndHorizontal();
+
+                        if (cb >= 0 && cb < condBranches.arraySize)
+                        {
+                            EditorGUI.indentLevel++;
+                            if (isJustLuck)
+                            {
+                                EditorGUILayout.Slider(
+                                    condBranch.FindPropertyRelative("weightRange0"),
+                                    0f, 1f, new GUIContent("Ağırlık"));
+                            }
+                            else
+                            {
+                                EditorGUILayout.Slider(
+                                    condBranch.FindPropertyRelative("weightRange0"),
+                                    0f, 1f, new GUIContent(range0Label));
+                                EditorGUILayout.Slider(
+                                    condBranch.FindPropertyRelative("weightRange1"),
+                                    0f, 1f, new GUIContent(range1Label));
+                                EditorGUILayout.Slider(
+                                    condBranch.FindPropertyRelative("weightRange2"),
+                                    0f, 1f, new GUIContent(range2Label));
+                                EditorGUILayout.Slider(
+                                    condBranch.FindPropertyRelative("weightRange3"),
+                                    0f, 1f, new GUIContent(range3Label));
+                            }
+                            SerializedProperty condTriggersImmediate = condBranch.FindPropertyRelative("triggersAsImmediateEvent");
+                            EditorGUILayout.PropertyField(condTriggersImmediate,
+                                new GUIContent("Anında Event Olarak Tetikle"));
+                            if (condTriggersImmediate.boolValue)
+                            {
+                                EditorGUILayout.Slider(
+                                    condBranch.FindPropertyRelative("immediateEventDelay"),
+                                    0f, 10f, new GUIContent("Gecikme (sn)"));
+                            }
+                            EditorGUI.indentLevel--;
+                            EditorGUILayout.Space(2);
+                        }
+                    }
+
+                    if (GUILayout.Button("+ Koşullu Dal Ekle"))
+                    {
+                        condBranches.InsertArrayElementAtIndex(condBranches.arraySize);
+                        SerializedProperty newCond = condBranches.GetArrayElementAtIndex(condBranches.arraySize - 1);
+                        newCond.FindPropertyRelative("targetEvent").objectReferenceValue = null;
+                        newCond.FindPropertyRelative("weightRange0").floatValue = 0f;
+                        newCond.FindPropertyRelative("weightRange1").floatValue = 0f;
+                        newCond.FindPropertyRelative("weightRange2").floatValue = 0f;
+                        newCond.FindPropertyRelative("weightRange3").floatValue = 0f;
+                        newCond.FindPropertyRelative("triggersAsImmediateEvent").boolValue = false;
+                        newCond.FindPropertyRelative("immediateEventDelay").floatValue = 0f;
+                    }
+
+                    EditorGUI.indentLevel--;
+                }
+            }
+
+            //zincir sayaç sistemi
             {
                 EditorGUILayout.Space(2);
                 SerializedProperty incCounter = choice.FindPropertyRelative("incrementsChainCounter");
@@ -1244,8 +1318,13 @@ public class WarForOilEventEditor : Editor
         choice.FindPropertyRelative("chainThreshold1").floatValue = 50f;
         choice.FindPropertyRelative("chainThreshold2").floatValue = 75f;
         choice.FindPropertyRelative("chainBranches").ClearArray();
+        choice.FindPropertyRelative("conditionalChainBranches").ClearArray();
         choice.FindPropertyRelative("chainCanEnd").boolValue = false;
         choice.FindPropertyRelative("chainEndWeight").floatValue = 1f;
+        choice.FindPropertyRelative("hasConditionalBranching").boolValue = false;
+        choice.FindPropertyRelative("branchCounterKey").stringValue = "";
+        choice.FindPropertyRelative("branchCounterMin").intValue = 0;
+        choice.FindPropertyRelative("branchCounterMax").intValue = -1;
         choice.FindPropertyRelative("incrementsChainCounter").boolValue = false;
         choice.FindPropertyRelative("chainCounterKey").stringValue = "";
         choice.FindPropertyRelative("chainCounterIncrement").intValue = 1;

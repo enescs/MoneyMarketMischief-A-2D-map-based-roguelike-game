@@ -379,17 +379,22 @@ Bir choice secildiginde siradaki chain event'in olasi hedeflerinden birini tanim
 | `weightRange3` | Aralik 3 agirligi |
 | `triggersAsImmediateEvent` | true ise secilen branch zincir devami yerine aninda event olarak tetiklenir. Zincir biter, event standalone olarak gosterilir. |
 | `immediateEventDelay` | Aninda event gecikmesi (0-10 saniye). triggersAsImmediateEvent aktifken gorunur. 0 = aninda, N = N saniye sonra tetiklenir. |
-| `hasCounterCondition` | true ise bu dal sadece zincir sayac kosulu saglandiginda secilebilir |
-| `counterConditionKey` | Kontrol edilecek sayac adi (choice'taki chainCounterKey ile ayni string) |
-| `minCounterValue` | Minimum sayac degeri (dahil) |
-| `maxCounterValue` | Maksimum sayac degeri (-1 = sinirsiz) |
+
+**Kosullu dallanma (choice seviyesinde):**
+- `hasConditionalBranching`: true ise kosullu dallanma aktif
+- `branchCounterKey`: Sayac adi
+- `branchCounterMin`: Minimum sayac degeri (dahil)
+- `branchCounterMax`: Maksimum sayac degeri (-1 = sinirsiz)
+
+Kosul saglanirsa `conditionalChainBranches` listesinden, saglanmazsa `chainBranches` listesinden secim yapilir. Iki havuzun agirliklari bagimsizdir.
 
 **Secim mantigi:**
 1. Stat'in mevcut yuzdesi (0-100) hesaplanir
 2. Esik degerlerine gore hangi aralikta oldugu belirlenir
 3. O araligin agirligi (weightRangeX) kullanilir
-4. Tum branch'lerin ayni araliktaki agirliklari toplanir, normalize edilir, agirlikli random secim yapilir
-5. JustLuck modunda aralik yok, sadece weightRange0 kullanilir
+4. Kosullu dallanma aktifse: kosul kontrol edilir, gecen havuz secilir
+5. Secilen havuzdaki branch'lerin agirliklarindan normalize edilip agirlikli random secim yapilir
+6. JustLuck modunda aralik yok, sadece weightRange0 kullanilir
 
 **Not:** Her aralik icin tum branch'lerin agirlik toplami ~1 olmalidir (olasilik gibi girilir).
 

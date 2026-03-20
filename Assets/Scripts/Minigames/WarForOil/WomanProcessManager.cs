@@ -60,13 +60,18 @@ public class WomanProcessManager : MonoBehaviour
 
     //zincir durumu
     private bool isInWomanChain;
-    private List<ChainBranch> pendingWomanChainBranches;
+    private List<ChainBranch> pendingWomanChainBranches; //koşulsuz dallar
+    private List<ChainBranch> pendingWomanConditionalBranches; //koşullu dallar
     private ChainInfluenceStat pendingWomanChainInfluenceStat;
     private float pendingWomanChainThreshold0;
     private float pendingWomanChainThreshold1;
     private float pendingWomanChainThreshold2;
     private bool pendingWomanChainCanEnd;
     private float pendingWomanChainEndWeight;
+    private bool pendingWomanConditionalBranching;
+    private string pendingWomanBranchCounterKey;
+    private int pendingWomanBranchCounterMin;
+    private int pendingWomanBranchCounterMax = -1;
     private Dictionary<string, int> womanChainCounters = new Dictionary<string, int>();
 
     //events — UI dinleyecek
@@ -505,17 +510,24 @@ public class WomanProcessManager : MonoBehaviour
         //anında event yoksa veya gecikmeli tetikleniyorsa — zincir dallanması kontrolü
         if (!immediateEventTriggered)
         {
-            if (choice.chainBranches != null && choice.chainBranches.Count > 0)
+            bool hasAnyBranches = (choice.chainBranches != null && choice.chainBranches.Count > 0)
+                || (choice.conditionalChainBranches != null && choice.conditionalChainBranches.Count > 0);
+            if (hasAnyBranches)
             {
                 //zincir başlat veya devam ettir
                 isInWomanChain = true;
-                pendingWomanChainBranches = choice.chainBranches;
+                pendingWomanChainBranches = choice.chainBranches != null ? new List<ChainBranch>(choice.chainBranches) : new List<ChainBranch>();
+                pendingWomanConditionalBranches = choice.conditionalChainBranches != null ? new List<ChainBranch>(choice.conditionalChainBranches) : new List<ChainBranch>();
                 pendingWomanChainInfluenceStat = choice.chainInfluenceStat;
                 pendingWomanChainThreshold0 = choice.chainThreshold0;
                 pendingWomanChainThreshold1 = choice.chainThreshold1;
                 pendingWomanChainThreshold2 = choice.chainThreshold2;
                 pendingWomanChainCanEnd = choice.chainCanEnd;
                 pendingWomanChainEndWeight = choice.chainCanEnd ? choice.chainEndWeight : 0f;
+                pendingWomanConditionalBranching = choice.hasConditionalBranching;
+                pendingWomanBranchCounterKey = choice.branchCounterKey;
+                pendingWomanBranchCounterMin = choice.branchCounterMin;
+                pendingWomanBranchCounterMax = choice.branchCounterMax;
             }
             else if (isInWomanChain)
             {
@@ -859,7 +871,9 @@ public class WomanProcessManager : MonoBehaviour
     /// </summary>
     private WarForOilEvent PickEventFromChainBranches()
     {
-        if (pendingWomanChainBranches == null || pendingWomanChainBranches.Count == 0) return null;
+        bool hasUnconditioned = pendingWomanChainBranches != null && pendingWomanChainBranches.Count > 0;
+        bool hasConditioned = pendingWomanConditionalBranches != null && pendingWomanConditionalBranches.Count > 0;
+        if (!hasUnconditioned && !hasConditioned) return null;
 
         //hangi aralıkta olduğumuzu belirle
         int rangeIndex = 0;
@@ -872,35 +886,35 @@ public class WomanProcessManager : MonoBehaviour
             else rangeIndex = 0;
         }
 
-        //ağırlıkları topla
+        //koşullu dallanma aktifse sayaç kontrolü yap
+        bool conditionMet = false;
+        if (pendingWomanConditionalBranching && !string.IsNullOrEmpty(pendingWomanBranchCounterKey)
+            && pendingWomanConditionalBranches != null && pendingWomanConditionalBranches.Count > 0)
+        {
+            int counterVal = 0;
+            womanChainCounters.TryGetValue(pendingWomanBranchCounterKey, out counterVal);
+            bool meetsMin = counterVal >= pendingWomanBranchCounterMin;
+            bool meetsMax = pendingWomanBranchCounterMax < 0 || counterVal <= pendingWomanBranchCounterMax;
+            conditionMet = meetsMin && meetsMax;
+        }
+
+        List<ChainBranch> activePool = conditionMet ? pendingWomanConditionalBranches : pendingWomanChainBranches;
+        if (activePool == null || activePool.Count == 0) return null;
+
+        float[] weights = new float[activePool.Count];
         float endWeight = pendingWomanChainCanEnd ? pendingWomanChainEndWeight : 0f;
         float totalWeight = endWeight;
-        float[] weights = new float[pendingWomanChainBranches.Count];
 
-        for (int i = 0; i < pendingWomanChainBranches.Count; i++)
+        for (int i = 0; i < activePool.Count; i++)
         {
-            if (pendingWomanChainBranches[i].targetEvent == null
-                || dismissedWomanEvents.Contains(pendingWomanChainBranches[i].targetEvent))
+            if (activePool[i].targetEvent == null
+                || dismissedWomanEvents.Contains(activePool[i].targetEvent))
             {
                 weights[i] = 0f;
                 continue;
             }
 
-            //zincir sayaç koşulu — sağlanmıyorsa bu dal seçilemez
-            if (pendingWomanChainBranches[i].hasCounterCondition)
-            {
-                int counterVal = 0;
-                if (!string.IsNullOrEmpty(pendingWomanChainBranches[i].counterConditionKey))
-                    womanChainCounters.TryGetValue(pendingWomanChainBranches[i].counterConditionKey, out counterVal);
-                bool meetsMin = counterVal >= pendingWomanChainBranches[i].minCounterValue;
-                bool meetsMax = pendingWomanChainBranches[i].maxCounterValue < 0 || counterVal <= pendingWomanChainBranches[i].maxCounterValue;
-                if (!meetsMin || !meetsMax)
-                {
-                    weights[i] = 0f;
-                    continue;
-                }
-            }
-            float w = GetBranchWeight(pendingWomanChainBranches[i], rangeIndex);
+            float w = GetBranchWeight(activePool[i], rangeIndex);
             if (w < 0f) w = 0f;
             weights[i] = w;
             totalWeight += w;
@@ -908,22 +922,21 @@ public class WomanProcessManager : MonoBehaviour
 
         if (totalWeight <= 0f)
         {
-            //tüm ağırlıklar 0 — engellenmemiş event varsa eşit ağırlıkla dağıt
             int eligibleCount = 0;
-            for (int i = 0; i < pendingWomanChainBranches.Count; i++)
+            for (int i = 0; i < activePool.Count; i++)
             {
-                if (pendingWomanChainBranches[i].targetEvent != null
-                    && !dismissedWomanEvents.Contains(pendingWomanChainBranches[i].targetEvent))
+                if (activePool[i].targetEvent != null
+                    && !dismissedWomanEvents.Contains(activePool[i].targetEvent))
                     eligibleCount++;
             }
             if (eligibleCount == 0) return null;
             Debug.LogWarning("[KADIN SÜRECİ] ZİNCİR DALLANMASI: TÜM AĞIRLIKLAR 0! EŞİT DAĞITIM YAPILIYOR. INSPECTOR'DAN AĞIRLIKLARI KONTROL ET!");
             float equalWeight = 1f / eligibleCount;
             totalWeight = 0f;
-            for (int i = 0; i < pendingWomanChainBranches.Count; i++)
+            for (int i = 0; i < activePool.Count; i++)
             {
-                if (pendingWomanChainBranches[i].targetEvent != null
-                    && !dismissedWomanEvents.Contains(pendingWomanChainBranches[i].targetEvent))
+                if (activePool[i].targetEvent != null
+                    && !dismissedWomanEvents.Contains(activePool[i].targetEvent))
                 {
                     weights[i] = equalWeight;
                     totalWeight += equalWeight;
@@ -936,31 +949,31 @@ public class WomanProcessManager : MonoBehaviour
 
         //önce chain bitme kontrolü
         if (roll < endWeight)
-            return null; //null dönünce TriggerWomanEvent zinciri bitirir
+            return null;
 
         float cumulative = endWeight;
-        for (int i = 0; i < pendingWomanChainBranches.Count; i++)
+        for (int i = 0; i < activePool.Count; i++)
         {
             cumulative += weights[i];
             if (roll <= cumulative)
             {
-                if (pendingWomanChainBranches[i].triggersAsImmediateEvent)
+                if (activePool[i].triggersAsImmediateEvent)
                 {
                     lastChainPickWasImmediate = true;
-                    lastChainPickImmediateDelay = pendingWomanChainBranches[i].immediateEventDelay;
+                    lastChainPickImmediateDelay = activePool[i].immediateEventDelay;
                 }
-                return pendingWomanChainBranches[i].targetEvent;
+                return activePool[i].targetEvent;
             }
         }
 
         //fallback
-        int lastIdx = pendingWomanChainBranches.Count - 1;
-        if (pendingWomanChainBranches[lastIdx].triggersAsImmediateEvent)
+        int lastIdx = activePool.Count - 1;
+        if (activePool[lastIdx].triggersAsImmediateEvent)
         {
             lastChainPickWasImmediate = true;
-            lastChainPickImmediateDelay = pendingWomanChainBranches[lastIdx].immediateEventDelay;
+            lastChainPickImmediateDelay = activePool[lastIdx].immediateEventDelay;
         }
-        return pendingWomanChainBranches[lastIdx].targetEvent;
+        return activePool[lastIdx].targetEvent;
     }
 
     private float GetBranchWeight(ChainBranch branch, int rangeIndex)
@@ -996,6 +1009,11 @@ public class WomanProcessManager : MonoBehaviour
     {
         isInWomanChain = false;
         pendingWomanChainBranches = null;
+        pendingWomanConditionalBranches = null;
+        pendingWomanConditionalBranching = false;
+        pendingWomanBranchCounterKey = null;
+        pendingWomanBranchCounterMin = 0;
+        pendingWomanBranchCounterMax = -1;
         womanChainCounters.Clear();
     }
 

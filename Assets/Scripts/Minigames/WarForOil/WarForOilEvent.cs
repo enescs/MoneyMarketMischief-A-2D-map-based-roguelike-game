@@ -174,9 +174,14 @@ public class WarForOilEventChoice
     [Range(0f, 100f)] public float chainThreshold0 = 20f;  //1. eşik (0-t0 = aralık 0)
     [Range(0f, 100f)] public float chainThreshold1 = 50f;  //2. eşik (t0-t1 = aralık 1)
     [Range(0f, 100f)] public float chainThreshold2 = 75f;  //3. eşik (t1-t2 = aralık 2, t2-100 = aralık 3)
-    public List<ChainBranch> chainBranches; //boşsa chain biter, doluysa dallanır
+    public List<ChainBranch> chainBranches; //koşulsuz dallar — koşul sağlanmazsa veya koşullu dallanma yoksa buradan seçilir
     public bool chainCanEnd; //true ise dallanma seçiminde chain'in bitme ihtimali de eklenir
     public float chainEndWeight = 1f; //chain bitme ağırlığı (dallanma ağırlıklarıyla yarışır)
+    public bool hasConditionalBranching; //true ise koşullu dallanma aktif
+    public string branchCounterKey; //koşullu dallanma sayaç adı
+    public int branchCounterMin; //koşullu dallanma minimum sayaç değeri (dahil)
+    public int branchCounterMax = -1; //koşullu dallanma maksimum sayaç değeri (-1 = sınırsız)
+    public List<ChainBranch> conditionalChainBranches; //koşullu dallar — koşul sağlanırsa buradan seçilir
 
     //rakip işgal flagleri (Editor tarafından foldout içinde çizilir)
     public bool acceptsRivalDeal; //rakip işgal anlaşmasını kabul eder
@@ -298,10 +303,6 @@ public class ChainBranch
     [Range(0f, 1f)] public float weightRange3; //aralık 3 ağırlığı
     public bool triggersAsImmediateEvent; //true ise zincir devamı yerine anında event olarak tetiklenir (zincir biter)
     [Range(0f, 10f)] public float immediateEventDelay; //anında event gecikmesi (0 = anında, saniye cinsinden)
-    public bool hasCounterCondition; //true ise bu dal sadece sayaç koşulu sağlandığında seçilebilir
-    public string counterConditionKey; //kontrol edilecek sayaç adı
-    public int minCounterValue; //minimum sayaç değeri (dahil)
-    public int maxCounterValue = -1; //maksimum sayaç değeri (-1 = sınırsız)
 }
 
 /// <summary>
