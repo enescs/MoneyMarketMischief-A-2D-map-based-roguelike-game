@@ -2079,6 +2079,17 @@ public class WarForOilManager : MonoBehaviour
     /// <summary>
     /// Grup kontrolü: maxTriggerCount aşıldıysa bu event bloklanır.
     /// </summary>
+    private bool IsStoryFlagsSatisfied(WarForOilEvent evt)
+    {
+        if (evt.requiredStoryFlags == null || evt.requiredStoryFlags.Count == 0) return true;
+        if (StoryFlagManager.Instance == null) return false;
+        for (int i = 0; i < evt.requiredStoryFlags.Count; i++)
+        {
+            if (!StoryFlagManager.Instance.HasFlag(evt.requiredStoryFlags[i])) return false;
+        }
+        return true;
+    }
+
     private bool IsBlockedByGroup(WarForOilEvent evt)
     {
         if (database.eventGroups == null) return false;
@@ -2344,6 +2355,7 @@ public class WarForOilManager : MonoBehaviour
                 WarForOilEvent evt = eventPool[i];
                 if (isInChain && evt.chainRole == ChainRole.Head) continue; //chain aktifken Head eventler random slotta gelmesin
                 if (evt.requiresBothProcessesActive && (WomanProcessManager.Instance == null || !WomanProcessManager.Instance.IsActive())) continue;
+                if (!IsStoryFlagsSatisfied(evt)) continue;
                 if (warTimer < evt.minWarTime * database.warDuration) continue;
                 if (evt.maxWarTime >= 0f && warTimer > evt.maxWarTime * database.warDuration) continue;
                 if (dismissedEventIds.Contains(evt.id)) continue;
@@ -2366,6 +2378,7 @@ public class WarForOilManager : MonoBehaviour
             {
                 WarForOilEvent evt = database.protestEvents[i];
                 if (evt.requiresBothProcessesActive && (WomanProcessManager.Instance == null || !WomanProcessManager.Instance.IsActive())) continue;
+                if (!IsStoryFlagsSatisfied(evt)) continue;
                 if (warTimer < evt.minWarTime * database.warDuration) continue;
                 if (evt.maxWarTime >= 0f && warTimer > evt.maxWarTime * database.warDuration) continue;
                 if (dismissedEventIds.Contains(evt.id)) continue;

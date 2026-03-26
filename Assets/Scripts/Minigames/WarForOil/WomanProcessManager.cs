@@ -688,6 +688,17 @@ public class WomanProcessManager : MonoBehaviour
     /// <summary>
     /// Şu an kadın eventi tetiklenebilir mi (başka event gösterilmiyor).
     /// </summary>
+    private bool IsStoryFlagsSatisfied(WarForOilEvent evt)
+    {
+        if (evt.requiredStoryFlags == null || evt.requiredStoryFlags.Count == 0) return true;
+        if (StoryFlagManager.Instance == null) return false;
+        for (int i = 0; i < evt.requiredStoryFlags.Count; i++)
+        {
+            if (!StoryFlagManager.Instance.HasFlag(evt.requiredStoryFlags[i])) return false;
+        }
+        return true;
+    }
+
     private bool CanTriggerNow()
     {
         //EventCoordinator ile çakışma kontrolü
@@ -1059,6 +1070,9 @@ public class WomanProcessManager : MonoBehaviour
 
             //ikili süreç kontrolü — hem savaş hem kadın süreci aktif olmalı
             if (evt.requiresBothProcessesActive && !isInWar) continue;
+
+            //hikaye bayrak kontrolü — tüm gerekli bayraklar aktif olmalı
+            if (!IsStoryFlagsSatisfied(evt)) continue;
 
             //öncü event kontrolü — war for oil öncüsü varsa ve savaşta değilsek atla
             if (evt.hasPrecursorEvent && evt.precursorEventType == PrecursorEventType.WarForOil && !isInWar)

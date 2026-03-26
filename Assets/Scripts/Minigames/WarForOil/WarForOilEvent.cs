@@ -56,6 +56,9 @@ public class WarForOilEvent : ScriptableObject
     public WarForOilEvent precursorWarEvent; //öncü war for oil eventi
     public Event precursorRandomEvent; //öncü random event
 
+    [Header("Hikaye Bayrak Koşulları")]
+    public List<StoryFlag> requiredStoryFlags; //bu event sadece bu bayraklar aktifken tetiklenebilir (hepsi gerekli)
+
     [Header("Zincir Ayarları")]
     public ChainRole chainRole = ChainRole.None; //bu event zincirde mi (Head = zincir başlatıcı)
     public bool blocksSubChainBranching; //true ise bu event tetiklendikten sonra başka zincirlerden dallanma hedefi olarak seçilemez
