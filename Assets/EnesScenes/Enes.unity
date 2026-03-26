@@ -10220,6 +10220,25 @@ MonoBehaviour:
   citiesDecorNight:
   - {fileID: 801571612984812487, guid: e0ccf11107e7bee4480888071a4a8f21, type: 3}
   brokenBuildingSpritesNight: []
+  maxPortCount: 2
+  portSpritesDay:
+  - {fileID: -3059732559334508080, guid: b87143e91e1165a418e4b08dbcb684db, type: 3}
+  portSpritesNight: []
+  portScaleRange: {x: 0.9, y: 1.2}
+  portCityBackingRadius: 3
+  portMinSeparation: 45
+  maxActiveShips: 3
+  shipSpritesDay:
+  - {fileID: 635046441581133840, guid: b1ffc874fca436d4590498f787adb33c, type: 3}
+  shipSpritesNight: []
+  shipSpeed: 0.11
+  shipScaleRange: {x: 0.6, y: 1}
+  shipWaitTimeRange: {x: 3, y: 8}
+  shipSpawnInterval: 5
+  shipPathGridStep: 4
+  shipLandClearance: 3
+  shipShoreAvoidanceWeight: 2
+  shipTurnSpeed: 15
 --- !u!114 &1710072564
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10547,9 +10566,9 @@ MonoBehaviour:
   duskLength: 5
   dawnLength: 5
   dayColor: {r: 1, g: 1, b: 1, a: 1}
-  duskColor: {r: 1, g: 0.65, b: 0.4, a: 1}
+  duskColor: {r: 1, g: 0.7069552, b: 0.49622637, a: 1}
   nightColor: {r: 0.31245992, g: 0.31245992, b: 0.4943396, a: 1}
-  dawnColor: {r: 0.9, g: 0.55, b: 0.45, a: 1}
+  dawnColor: {r: 0.8792453, g: 0.5793354, b: 0.49602705, a: 1}
   mapRenderer: {fileID: 598282585}
   paused: 0
 --- !u!1 &1711406226
