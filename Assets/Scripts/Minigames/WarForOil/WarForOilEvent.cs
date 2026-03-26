@@ -370,14 +370,25 @@ public enum PermanentMultiplierStatType
 }
 
 /// <summary>
-/// Dinamik stat tavanı girişi. Bir stat'ın tavanını düşürür veya mevcut tavanı kaldırır.
+/// Stat tavan işlem tipi.
+/// </summary>
+public enum StatCeilingMode
+{
+    Set,      //direkt değer ata
+    Multiply, //mevcut tavanı çarpanla çarp (0-1 arası)
+    Remove    //tavanı kaldır
+}
+
+/// <summary>
+/// Dinamik stat tavanı girişi. Bir stat'ın tavanını düşürür, çarpanla değiştirir veya kaldırır.
 /// </summary>
 [System.Serializable]
 public class StatCeilingEntry
 {
     public StatType stat; //etkilenecek stat
-    public bool removes; //true ise tavanı kaldırır, false ise tavan koyar
-    public float ceilingValue; //tavan değeri (removes=false ise kullanılır)
+    public StatCeilingMode mode; //işlem tipi
+    public float ceilingValue; //tavan değeri (Set modunda kullanılır)
+    [Range(0f, 1f)] public float ceilingMultiplier = 1f; //çarpan (Multiply modunda kullanılır)
 }
 
 /// <summary>

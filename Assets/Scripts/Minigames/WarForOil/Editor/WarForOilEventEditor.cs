@@ -1235,29 +1235,43 @@ public class WarForOilEventEditor : Editor
             for (int c = 0; c < ceilingList.arraySize; c++)
             {
                 SerializedProperty entry = ceilingList.GetArrayElementAtIndex(c);
-                SerializedProperty removes = entry.FindPropertyRelative("removes");
+                SerializedProperty modeProp = entry.FindPropertyRelative("mode");
                 SerializedProperty stat = entry.FindPropertyRelative("stat");
                 SerializedProperty val = entry.FindPropertyRelative("ceilingValue");
+                SerializedProperty mult = entry.FindPropertyRelative("ceilingMultiplier");
+
+                EditorGUILayout.BeginVertical(EditorStyles.helpBox);
 
                 EditorGUILayout.BeginHorizontal();
-                EditorGUILayout.PropertyField(stat, GUIContent.none, GUILayout.MinWidth(80));
-
-                string[] options = { "Tavan Koy", "Tavanı Kaldır" };
-                int selected = removes.boolValue ? 1 : 0;
-                selected = EditorGUILayout.Popup(selected, options, GUILayout.Width(90));
-                removes.boolValue = selected == 1;
-
-                if (!removes.boolValue)
-                {
-                    val.floatValue = EditorGUILayout.FloatField(val.floatValue, GUILayout.Width(60));
-                }
-
-                if (GUILayout.Button("X", GUILayout.Width(20)))
+                EditorGUILayout.LabelField($"Etki {c}", EditorStyles.boldLabel);
+                GUILayout.FlexibleSpace();
+                if (GUILayout.Button("Kaldır", GUILayout.Width(60)))
                 {
                     ceilingList.DeleteArrayElementAtIndex(c);
+                    EditorGUILayout.EndHorizontal();
+                    EditorGUILayout.EndVertical();
                     break;
                 }
                 EditorGUILayout.EndHorizontal();
+
+                EditorGUILayout.PropertyField(stat, new GUIContent("Stat"));
+
+                string[] options = { "Direkt Ata", "Çarpanla Düşür", "Tavanı Kaldır" };
+                modeProp.enumValueIndex = EditorGUILayout.Popup("İşlem", modeProp.enumValueIndex, options);
+
+                StatCeilingMode mode = (StatCeilingMode)modeProp.enumValueIndex;
+                if (mode == StatCeilingMode.Set)
+                {
+                    EditorGUILayout.PropertyField(val, new GUIContent("Tavan Değeri"));
+                }
+                else if (mode == StatCeilingMode.Multiply)
+                {
+                    EditorGUILayout.Slider(mult, 0f, 1f, new GUIContent("Çarpan"));
+                    EditorGUILayout.HelpBox("Mevcut tavan × çarpan = yeni tavan.\nÖrn: tavan 100, çarpan 0.5 → yeni tavan 50.", MessageType.Info);
+                }
+
+                EditorGUILayout.EndVertical();
+                EditorGUILayout.Space(2);
             }
 
             if (GUILayout.Button("+ Stat Tavanı Ekle"))
@@ -1265,8 +1279,9 @@ public class WarForOilEventEditor : Editor
                 ceilingList.InsertArrayElementAtIndex(ceilingList.arraySize);
                 SerializedProperty newEntry = ceilingList.GetArrayElementAtIndex(ceilingList.arraySize - 1);
                 newEntry.FindPropertyRelative("stat").enumValueIndex = 0;
-                newEntry.FindPropertyRelative("removes").boolValue = false;
+                newEntry.FindPropertyRelative("mode").enumValueIndex = 0;
                 newEntry.FindPropertyRelative("ceilingValue").floatValue = 50f;
+                newEntry.FindPropertyRelative("ceilingMultiplier").floatValue = 1f;
             }
 
             EditorGUILayout.HelpBox("Tavan Koy: Stat bu değerin üzerine çıkamaz.\nTavanı Kaldır: Önceden konmuş tavanı kaldırır, doğal sınıra döner.", MessageType.Info);

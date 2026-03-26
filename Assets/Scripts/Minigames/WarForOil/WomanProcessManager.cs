@@ -386,10 +386,19 @@ public class WomanProcessManager : MonoBehaviour
             for (int i = 0; i < choice.statCeilingEffects.Count; i++)
             {
                 var entry = choice.statCeilingEffects[i];
-                if (entry.removes)
-                    GameStatManager.Instance.RemoveStatCeiling(entry.stat);
-                else
-                    GameStatManager.Instance.SetStatCeiling(entry.stat, entry.ceilingValue);
+                switch (entry.mode)
+                {
+                    case StatCeilingMode.Set:
+                        GameStatManager.Instance.SetStatCeiling(entry.stat, entry.ceilingValue);
+                        break;
+                    case StatCeilingMode.Multiply:
+                        float currentMax = GameStatManager.Instance.GetEffectiveMax(entry.stat);
+                        GameStatManager.Instance.SetStatCeiling(entry.stat, currentMax * entry.ceilingMultiplier);
+                        break;
+                    case StatCeilingMode.Remove:
+                        GameStatManager.Instance.RemoveStatCeiling(entry.stat);
+                        break;
+                }
             }
         }
 
