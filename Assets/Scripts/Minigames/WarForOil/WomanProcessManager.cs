@@ -380,6 +380,19 @@ public class WomanProcessManager : MonoBehaviour
         if (isInWar && WarForOilManager.Instance != null)
             WarForOilManager.Instance.ApplyExternalWarEffects(choice);
 
+        //dinamik stat tavanı uygula
+        if (choice.statCeilingEffects != null && choice.statCeilingEffects.Count > 0 && GameStatManager.Instance != null)
+        {
+            for (int i = 0; i < choice.statCeilingEffects.Count; i++)
+            {
+                var entry = choice.statCeilingEffects[i];
+                if (entry.removes)
+                    GameStatManager.Instance.RemoveStatCeiling(entry.stat);
+                else
+                    GameStatManager.Instance.SetStatCeiling(entry.stat, entry.ceilingValue);
+            }
+        }
+
         //kalıcı stat çarpanları
         if (choice.permanentMultipliers != null && choice.permanentMultipliers.Count > 0)
         {

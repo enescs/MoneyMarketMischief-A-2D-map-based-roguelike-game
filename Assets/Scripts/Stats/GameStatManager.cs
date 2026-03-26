@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class GameStatManager : MonoBehaviour
@@ -41,6 +42,9 @@ public class GameStatManager : MonoBehaviour
     //itibar tavan düşüşü — eksiye düşülen en düşük nokta kadar tavan kalıcı olarak düşer
     private float lowestNegativeReputation = 0f; //en düşük negatif itibar noktası (0 = hiç eksiye düşmedi)
 
+    //dinamik stat tavanları — choice etkisiyle doğal sınırın altına çekilir
+    private Dictionary<StatType, float> statCeilings = new Dictionary<StatType, float>();
+
     //kalıcı stat çarpanları — çarpımsal birikir (1.0 = etkisiz, 1.1 = %10 bonus)
     private float wealthGainMultiplier = 1f;
     private float suspicionGainMultiplier = 1f;
@@ -51,6 +55,8 @@ public class GameStatManager : MonoBehaviour
     public static event Action<StatType, float, float> OnStatChanged; //stat, oldValue, newValue
     public static event Action OnGameOver; //şüphe 100'e ulaştığında
     public static event Action<StatType, float> OnPermanentMultiplierChanged; //stat, yeni toplam çarpan
+    public static event Action<StatType, float> OnStatCeilingSet; //stat, yeni tavan
+    public static event Action<StatType> OnStatCeilingRemoved; //stat tavan kaldırıldı
 
     private void Awake()
     {
@@ -161,6 +167,73 @@ public class GameStatManager : MonoBehaviour
         };
     }
 
+    /// <summary>
+    /// Stat'a dinamik tavan koyar. Doğal sınırın altına çeker.
+    /// Mevcut değer tavandan yüksekse tavana clamp edilir.
+    /// </summary>
+    public void SetStatCeiling(StatType statType, float ceilingValue)
+    {
+        float naturalMax = GetNaturalMax(statType);
+        ceilingValue = Mathf.Min(ceilingValue, naturalMax); //doğal sınırı aşamaz
+
+        statCeilings[statType] = ceilingValue;
+        OnStatCeilingSet?.Invoke(statType, ceilingValue);
+
+        //mevcut değer yeni tavandan yüksekse clamp et
+        float current = GetStat(statType);
+        if (current > ceilingValue)
+        {
+            SetStat(statType, ceilingValue);
+        }
+    }
+
+    /// <summary>
+    /// Stat'ın dinamik tavanını kaldırır, doğal sınıra döner.
+    /// </summary>
+    public void RemoveStatCeiling(StatType statType)
+    {
+        if (statCeilings.Remove(statType))
+        {
+            OnStatCeilingRemoved?.Invoke(statType);
+        }
+    }
+
+    /// <summary>
+    /// Stat'ın aktif tavanını döner. Dinamik tavan varsa onu, yoksa doğal sınırı döner.
+    /// </summary>
+    public float GetEffectiveMax(StatType statType)
+    {
+        float naturalMax = GetNaturalMax(statType);
+        if (statCeilings.TryGetValue(statType, out float ceiling))
+        {
+            return Mathf.Min(ceiling, naturalMax);
+        }
+        return naturalMax;
+    }
+
+    /// <summary>
+    /// Stat'ın doğal (tanımlı) maksimum sınırını döner.
+    /// </summary>
+    public float GetNaturalMax(StatType statType)
+    {
+        return statType switch
+        {
+            StatType.Wealth => float.MaxValue,
+            StatType.Suspicion => maxSuspicion,
+            StatType.Reputation => EffectiveMaxReputation,
+            StatType.PoliticalInfluence => maxPoliticalInfluence,
+            _ => float.MaxValue
+        };
+    }
+
+    /// <summary>
+    /// Stat'ın dinamik tavanı aktif mi.
+    /// </summary>
+    public bool HasStatCeiling(StatType statType)
+    {
+        return statCeilings.ContainsKey(statType);
+    }
+
     #endregion
 
     #region Stat Modification
@@ -192,6 +265,10 @@ public class GameStatManager : MonoBehaviour
         float oldValue = wealth;
         wealth += amount;
 
+        //dinamik tavan kontrolü
+        if (statCeilings.TryGetValue(StatType.Wealth, out float wealthCeiling) && wealth > wealthCeiling)
+            wealth = wealthCeiling;
+
         if (oldValue != wealth)
         {
             OnStatChanged?.Invoke(StatType.Wealth, oldValue, wealth);
@@ -210,7 +287,8 @@ public class GameStatManager : MonoBehaviour
             amount *= suspicionGainMultiplier;
         }
 
-        suspicion = Mathf.Clamp(suspicion + amount, minSuspicion, maxSuspicion);
+        float suspicionMax = GetEffectiveMax(StatType.Suspicion);
+        suspicion = Mathf.Clamp(suspicion + amount, minSuspicion, suspicionMax);
 
         if (oldValue != suspicion)
         {
@@ -228,7 +306,8 @@ public class GameStatManager : MonoBehaviour
     public void AddSuspicionRaw(float amount)
     {
         float oldValue = suspicion;
-        suspicion = Mathf.Clamp(suspicion + amount, minSuspicion, maxSuspicion);
+        float suspicionMax = GetEffectiveMax(StatType.Suspicion);
+        suspicion = Mathf.Clamp(suspicion + amount, minSuspicion, suspicionMax);
 
         if (oldValue != suspicion)
         {
@@ -247,7 +326,8 @@ public class GameStatManager : MonoBehaviour
             amount *= reputationGainMultiplier;
 
         float oldValue = reputation;
-        reputation = Mathf.Clamp(reputation + amount, minReputation, EffectiveMaxReputation);
+        float repMax = GetEffectiveMax(StatType.Reputation);
+        reputation = Mathf.Clamp(reputation + amount, minReputation, repMax);
 
         //eksiye düştüyse en düşük noktayı güncelle (tavan kalıcı olarak düşer)
         if (reputation < 0f && reputation < lowestNegativeReputation)
@@ -273,7 +353,8 @@ public class GameStatManager : MonoBehaviour
             amount *= politicalInfluenceGainMultiplier;
 
         float oldValue = politicalInfluence;
-        politicalInfluence = Mathf.Clamp(politicalInfluence + amount, minPoliticalInfluence, maxPoliticalInfluence);
+        float piMax = GetEffectiveMax(StatType.PoliticalInfluence);
+        politicalInfluence = Mathf.Clamp(politicalInfluence + amount, minPoliticalInfluence, piMax);
 
         if (oldValue != politicalInfluence)
         {
@@ -295,15 +376,15 @@ public class GameStatManager : MonoBehaviour
                 wealth = value;
                 break;
             case StatType.Suspicion:
-                suspicion = Mathf.Clamp(value, minSuspicion, maxSuspicion);
+                suspicion = Mathf.Clamp(value, minSuspicion, GetEffectiveMax(StatType.Suspicion));
                 break;
             case StatType.Reputation:
-                reputation = Mathf.Clamp(value, minReputation, EffectiveMaxReputation);
+                reputation = Mathf.Clamp(value, minReputation, GetEffectiveMax(StatType.Reputation));
                 if (reputation < 0f && reputation < lowestNegativeReputation)
                     lowestNegativeReputation = reputation;
                 break;
             case StatType.PoliticalInfluence:
-                politicalInfluence = Mathf.Clamp(value, minPoliticalInfluence, maxPoliticalInfluence);
+                politicalInfluence = Mathf.Clamp(value, minPoliticalInfluence, GetEffectiveMax(StatType.PoliticalInfluence));
                 break;
             default:
                 return;

@@ -355,6 +355,19 @@ public class WarForOilManager : MonoBehaviour
         if (choice.setsStoryFlags != null && choice.setsStoryFlags.Count > 0 && StoryFlagManager.Instance != null)
             StoryFlagManager.Instance.SetFlags(choice.setsStoryFlags);
 
+        //dinamik stat tavanı uygula
+        if (choice.statCeilingEffects != null && choice.statCeilingEffects.Count > 0 && GameStatManager.Instance != null)
+        {
+            for (int i = 0; i < choice.statCeilingEffects.Count; i++)
+            {
+                var entry = choice.statCeilingEffects[i];
+                if (entry.removes)
+                    GameStatManager.Instance.RemoveStatCeiling(entry.stat);
+                else
+                    GameStatManager.Instance.SetStatCeiling(entry.stat, entry.ceilingValue);
+            }
+        }
+
         //supportStat güncelle (kalıcı çarpan uygulanır)
         if (choice.supportModifier != 0f)
             supportStat = Mathf.Clamp(supportStat + choice.supportModifier * supportGainMultiplier, 0f, 100f);

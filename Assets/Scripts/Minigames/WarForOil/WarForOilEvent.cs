@@ -215,9 +215,12 @@ public class WarForOilEventChoice
     //kalıcı stat çarpanları (seçildiğinde anında ve kalıcı uygulanır — tüm oyun boyunca geçerli)
     public List<PermanentMultiplierEntry> permanentMultipliers = new List<PermanentMultiplierEntry>();
 
+    //dinamik stat tavanı — choice seçildiğinde belirli stat'ların tavanını düşürür veya kaldırır
+    public List<StatCeilingEntry> statCeilingEffects; //tavan koy veya kaldır
+
     //anında tetiklenen event — choice seçildiğinde havuzdan biri gösterilir
     public bool hasImmediateEvent; //true ise seçildiğinde bir event tetiklenir
-    [Range(0f, 10f)] public float immediateEventDelay; //tetikleme gecikmesi (0 = anında, saniye cinsinden)
+    [Range(0f, 15f)] public float immediateEventDelay; //tetikleme gecikmesi (0 = anında, saniye cinsinden)
     public bool immediateEventIsTiered; //true ise kadın obsesyon tier'ına göre farklı event seçilir
     public List<ImmediateEventEntry> immediateEventPool; //ağırlıklı event havuzu (tier'sız mod)
     public WarForOilEvent immediateEventTier1; //low obsesyon → bu event gelir
@@ -302,7 +305,7 @@ public class ChainBranch
     [Range(0f, 1f)] public float weightRange2; //aralık 2 ağırlığı
     [Range(0f, 1f)] public float weightRange3; //aralık 3 ağırlığı
     public bool triggersAsImmediateEvent; //true ise zincir devamı yerine anında event olarak tetiklenir (zincir biter)
-    [Range(0f, 10f)] public float immediateEventDelay; //anında event gecikmesi (0 = anında, saniye cinsinden)
+    [Range(0f, 15f)] public float immediateEventDelay; //anında event gecikmesi (0 = anında, saniye cinsinden)
 }
 
 /// <summary>
@@ -364,6 +367,17 @@ public enum PermanentMultiplierStatType
     PoliticalInfluence,
     WarSupport,
     WomanObsession
+}
+
+/// <summary>
+/// Dinamik stat tavanı girişi. Bir stat'ın tavanını düşürür veya mevcut tavanı kaldırır.
+/// </summary>
+[System.Serializable]
+public class StatCeilingEntry
+{
+    public StatType stat; //etkilenecek stat
+    public bool removes; //true ise tavanı kaldırır, false ise tavan koyar
+    public float ceilingValue; //tavan değeri (removes=false ise kullanılır)
 }
 
 /// <summary>

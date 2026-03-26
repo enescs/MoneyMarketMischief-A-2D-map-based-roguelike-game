@@ -17,6 +17,7 @@ public class WarForOilEventEditor : Editor
     private Dictionary<int, bool> feedFoldouts = new Dictionary<int, bool>();
     private Dictionary<int, bool> rewardFoldouts = new Dictionary<int, bool>();
     private Dictionary<int, bool> permanentEffectFoldouts = new Dictionary<int, bool>();
+    private Dictionary<int, bool> statCeilingFoldouts = new Dictionary<int, bool>();
     private Dictionary<int, bool> womanProcessFoldouts = new Dictionary<int, bool>();
     private bool chainFoldout;
 
@@ -1216,6 +1217,65 @@ public class WarForOilEventEditor : Editor
 
         EditorGUILayout.Space(2);
 
+        //dinamik stat tavanı — foldout
+        if (!statCeilingFoldouts.ContainsKey(index))
+            statCeilingFoldouts[index] = false;
+
+        SerializedProperty ceilingList = choice.FindPropertyRelative("statCeilingEffects");
+        string ceilingLabel = ceilingList.arraySize > 0
+            ? $"Stat Tavan Etkileri ({ceilingList.arraySize})"
+            : "Stat Tavan Etkileri";
+        statCeilingFoldouts[index] = EditorGUILayout.Foldout(
+            statCeilingFoldouts[index], ceilingLabel, true);
+
+        if (statCeilingFoldouts[index])
+        {
+            EditorGUI.indentLevel++;
+
+            for (int c = 0; c < ceilingList.arraySize; c++)
+            {
+                SerializedProperty entry = ceilingList.GetArrayElementAtIndex(c);
+                SerializedProperty removes = entry.FindPropertyRelative("removes");
+                SerializedProperty stat = entry.FindPropertyRelative("stat");
+                SerializedProperty val = entry.FindPropertyRelative("ceilingValue");
+
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.PropertyField(stat, GUIContent.none, GUILayout.MinWidth(80));
+
+                string[] options = { "Tavan Koy", "Tavanı Kaldır" };
+                int selected = removes.boolValue ? 1 : 0;
+                selected = EditorGUILayout.Popup(selected, options, GUILayout.Width(90));
+                removes.boolValue = selected == 1;
+
+                if (!removes.boolValue)
+                {
+                    val.floatValue = EditorGUILayout.FloatField(val.floatValue, GUILayout.Width(60));
+                }
+
+                if (GUILayout.Button("X", GUILayout.Width(20)))
+                {
+                    ceilingList.DeleteArrayElementAtIndex(c);
+                    break;
+                }
+                EditorGUILayout.EndHorizontal();
+            }
+
+            if (GUILayout.Button("+ Stat Tavanı Ekle"))
+            {
+                ceilingList.InsertArrayElementAtIndex(ceilingList.arraySize);
+                SerializedProperty newEntry = ceilingList.GetArrayElementAtIndex(ceilingList.arraySize - 1);
+                newEntry.FindPropertyRelative("stat").enumValueIndex = 0;
+                newEntry.FindPropertyRelative("removes").boolValue = false;
+                newEntry.FindPropertyRelative("ceilingValue").floatValue = 50f;
+            }
+
+            EditorGUILayout.HelpBox("Tavan Koy: Stat bu değerin üzerine çıkamaz.\nTavanı Kaldır: Önceden konmuş tavanı kaldırır, doğal sınıra döner.", MessageType.Info);
+
+            EditorGUI.indentLevel--;
+        }
+
+        EditorGUILayout.Space(2);
+
         //ön koşullar — foldout
         if (!prerequisiteFoldouts.ContainsKey(index))
             prerequisiteFoldouts[index] = false;
@@ -1362,6 +1422,7 @@ public class WarForOilEventEditor : Editor
         choice.FindPropertyRelative("obsessionDropLimit").floatValue = 0f;
         choice.FindPropertyRelative("womanPoolDatabase").objectReferenceValue = null;
         choice.FindPropertyRelative("permanentMultipliers").ClearArray();
+        choice.FindPropertyRelative("statCeilingEffects").ClearArray();
         choice.FindPropertyRelative("hasImmediateEvent").boolValue = false;
         choice.FindPropertyRelative("immediateEventDelay").floatValue = 0f;
         choice.FindPropertyRelative("immediateEventIsTiered").boolValue = false;
