@@ -88,7 +88,7 @@ public class EarthquakeSystem : MonoBehaviour
 
         Debug.Log($"EarthquakeSystem: Epicenter={epicenter}, Radius={radius}");
 
-        // Draw cracks distributed across the circle
+        // 1. Draw cracks originating from fault tiles inside the circle
         HashSet<Vector2Int> crackedTiles = null;
         if (mapPainter != null)
         {
@@ -98,8 +98,11 @@ public class EarthquakeSystem : MonoBehaviour
                 numCracks, maxBranchDepth, branchChance);
         }
 
-        mapDecorPlacer?.DestroyBuildingsInRadius(faultGen, epicenter, radius);
+        // 2. Swap sprites on buildings whose tiles were cracked
+        if (crackedTiles != null && mapDecorPlacer != null)
+            mapDecorPlacer.MarkBuildingsBroken(crackedTiles);
 
+        // 3. Break roads that intersect cracked tiles
         if (crackedTiles != null && roadGenerator != null)
             BreakRoads(crackedTiles);
 

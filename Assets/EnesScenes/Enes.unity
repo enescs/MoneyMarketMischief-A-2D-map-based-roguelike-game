@@ -408,6 +408,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 5718375045061896029, guid: 0db640ce4dba7f84288299145cda16db, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1710072576}
+    - targetCorrespondingSourceObject: {fileID: 5718375045061896029, guid: 0db640ce4dba7f84288299145cda16db, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1710072578}
   m_SourcePrefab: {fileID: 100100000, guid: 0db640ce4dba7f84288299145cda16db, type: 3}
 --- !u!1001 &102576865
 PrefabInstance:
@@ -10180,7 +10183,7 @@ MonoBehaviour:
   mapGenerator: {fileID: 1710072556}
   mapRenderer: {fileID: 598282585}
   settings: {fileID: 11400000, guid: a6071283a4cab464abb307b253fbd4b6, type: 2}
-  roadGenerator: {fileID: 0}
+  roadGenerator: {fileID: 1710072573}
   waterDepthRange: 60
   waterDepthSteps: 6
   transitionWidth: 67
@@ -10212,6 +10215,11 @@ MonoBehaviour:
   overlapRadius: 0.3
   cityBuildingMaxRoadDistance: 8
   cityRoadAffinityStrength: 0.7
+  brokenBuildingSprites: []
+  brokenBuildingTint: {r: 0.55, g: 0.45, b: 0.4, a: 1}
+  citiesDecorNight:
+  - {fileID: 801571612984812487, guid: e0ccf11107e7bee4480888071a4a8f21, type: 3}
+  brokenBuildingSpritesNight: []
 --- !u!114 &1710072564
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10414,23 +10422,23 @@ MonoBehaviour:
   highwayThickness: 5
   highwayOutlineWidth: 2
   highwayShoreBuffer: 11
-  highwayFill: {r: 0.38, g: 0.36, b: 0.32, a: 1}
-  highwayOutline: {r: 0.25, g: 0.23, b: 0.2, a: 1}
+  highwayFill: {r: 0.25490198, g: 0.2509804, b: 0.2509804, a: 1}
+  highwayOutline: {r: 0.1764706, g: 0.1764706, b: 0.18823531, a: 1}
   branchMinCoverageDistance: 35
   branchMaxCount: 35
   branchCurviness: 0.085
   branchStartThickness: 3
-  branchEndThickness: 1
+  branchEndThickness: 2
   branchOutlineWidth: 0
   branchShoreBuffer: 30
-  agriculturalFill: {r: 0.5, g: 0.42, b: 0.28, a: 1}
+  agriculturalFill: {r: 0.4867924, g: 0.4437594, b: 0.27462438, a: 1}
   agriculturalOutline: {r: 0.38, g: 0.32, b: 0.2, a: 1}
   citiesFill: {r: 0.42, g: 0.4, b: 0.37, a: 1}
   citiesOutline: {r: 0.28, g: 0.26, b: 0.24, a: 1}
-  industrialFill: {r: 0.32, g: 0.28, b: 0.24, a: 1}
-  industrialOutline: {r: 0.2, g: 0.17, b: 0.14, a: 1}
-  urbanFill: {r: 0.45, g: 0.43, b: 0.4, a: 1}
-  urbanOutline: {r: 0.3, g: 0.28, b: 0.25, a: 1}
+  industrialFill: {r: 0.5764706, g: 0.48627454, b: 0.18823531, a: 1}
+  industrialOutline: {r: 0.43865523, g: 0.4566037, b: 0.12664291, a: 1}
+  urbanFill: {r: 0.41176474, g: 0.45882356, b: 0.3921569, a: 1}
+  urbanOutline: {r: 0.2784314, g: 0.3254902, b: 0.25882354, a: 1}
   shoreBuffer: 2
   scaleWithMapSize: 1
 --- !u!114 &1710072575
@@ -10448,6 +10456,7 @@ MonoBehaviour:
   mapPainter: {fileID: 1710072559}
   roadGenerator: {fileID: 1710072573}
   carSprite: {fileID: -7011324565457971746, guid: 6601d8a1f536eb04fb2bba756b231ba9, type: 3}
+  carSpriteNight: {fileID: -5904536653236030488, guid: 254d2b868d369214d89613ce7384ff1b, type: 3}
   carSortingLayer: Default
   carSortingOrder: 20
   pixelsPerUnit: 100
@@ -10484,15 +10493,16 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FaultLineGenerator
   mapGenerator: {fileID: 1710072556}
-  faultLineCount: 2
-  faultSteps: 393
+  minFaultLines: 2
+  maxFaultLines: 10
+  segmentLength: 280
+  curvature: 0.0422
+  stepOffsetChance: 0.0134
+  stepOffsetDistance: 9
   faultWidth: 2
-  jitterStrength: 0.315
-  kinkChance: 0.091
-  kinkAngle: 0.914
-  branchChance: 0.0178
-  branchSteps: 81
-  maxBranchDepth: 2
+  echelonChance: 0.4
+  echelonOffset: 12
+  echelonLengthRatio: 0.5
   showFaultLinesAlways: 1
 --- !u!114 &1710072577
 MonoBehaviour:
@@ -10509,8 +10519,39 @@ MonoBehaviour:
   mapGenerator: {fileID: 1710072556}
   mapPainter: {fileID: 1710072559}
   mapDecorPlacer: {fileID: 1710072562}
+  roadGenerator: {fileID: 1710072573}
   baseEarthquakeProbability: 0.5
-  surfaceCrackColor: {r: 0.1, g: 0.07, b: 0.05, a: 1}
+  minRadius: 21
+  maxRadius: 120
+  nodeInfluenceRange: 50
+  crackColor: {r: 0.4037736, g: 0.22112314, b: 0.09065856, a: 1}
+  numCracks: 6
+  maxBranchDepth: 2
+  branchChance: 0.108
+  debugCanvas: {fileID: 1943374661}
+  debugButtonFont: {fileID: 12800000, guid: e3265ab4bf004d28a9537516768c1c75, type: 3}
+--- !u!114 &1710072578
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 744350989}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8443ab0d670317844a49227cd214e806, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DayNightCycle
+  dayLength: 60
+  nightLength: 5
+  duskLength: 5
+  dawnLength: 5
+  dayColor: {r: 1, g: 1, b: 1, a: 1}
+  duskColor: {r: 1, g: 0.65, b: 0.4, a: 1}
+  nightColor: {r: 0.31245992, g: 0.31245992, b: 0.4943396, a: 1}
+  dawnColor: {r: 0.9, g: 0.55, b: 0.45, a: 1}
+  mapRenderer: {fileID: 598282585}
+  paused: 0
 --- !u!1 &1711406226
 GameObject:
   m_ObjectHideFlags: 0

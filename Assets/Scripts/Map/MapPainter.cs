@@ -35,10 +35,6 @@ public class MapPainter : MonoBehaviour
     void OnEnable()  { if (mapGenerator != null) mapGenerator.OnMapGenerated += Paint; }
     void OnDisable() { if (mapGenerator != null) mapGenerator.OnMapGenerated -= Paint; }
 
-    // -------------------------------------------------------------------------
-    // PUBLIC API
-    // -------------------------------------------------------------------------
-
     public Texture2D GetMapTexture() => mapTexture;
 
     // -------------------------------------------------------------------------
@@ -69,10 +65,8 @@ public class MapPainter : MonoBehaviour
             Color c = mapGenerator.IsLand(x, y)
                 ? PaintLandWithTransition(x, y, seed)
                 : PaintWater(x, y, seed, w, h);
-
             float fog = mapGenerator.GetFog(x, y);
             if (fog > 0f) c = Color.Lerp(c, settings.fogColor, fog);
-
             pixels[x + y * w] = c;
         }
 
@@ -88,19 +82,15 @@ public class MapPainter : MonoBehaviour
             roadGenerator.GenerateRoads(mapGenerator, mapTexture);
             ApplyToRenderer(mapTexture);
         }
-        else
-        {
-            Debug.LogWarning("MapPainter: No RoadGenerator found. Roads will not be generated.");
-        }
+        else Debug.LogWarning("MapPainter: No RoadGenerator found. Roads will not be generated.");
 
         decorPlacer.Repaint(mapGenerator, settings, mapTexture);
     }
 
     // =========================================================================
-    // CRACK PAINTING
+    // CRACK PAINTING — glass crack pattern
     // =========================================================================
 
-    /// <summary>Legacy full-map crack — kept for compatibility.</summary>
     public void ApplyCracks(bool[,] faultMap, Color crackColor)
     {
         if (mapTexture == null || faultMap == null) return;
@@ -109,17 +99,16 @@ public class MapPainter : MonoBehaviour
         for (int y = 0; y < h; y++)
         {
             if (!faultMap[x, y] || !mapGenerator.IsLand(x, y)) continue;
-            Color existing = mapTexture.GetPixel(x, y);
-            mapTexture.SetPixel(x, y, Color.Lerp(existing, crackColor, 0.85f));
+            mapTexture.SetPixel(x, y, Color.Lerp(mapTexture.GetPixel(x, y), crackColor, 0.85f));
         }
         mapTexture.Apply();
         UndergroundMapManager.Instance?.RefreshSurfaceSprite();
     }
 
     /// <summary>
-    /// Draws sharp, branching ground cracks distributed semi-evenly inside the circle.
-    /// Crack origins are scattered across the circle rather than limited to fault tiles.
-    /// Returns the set of cracked tile positions for road-break detection.
+    /// Draws a glass-crack pattern: arms radiate from the epicenter outward,
+    /// each arm can sub-branch once or twice. No shadows, no tip steering.
+    /// Returns cracked tile positions for road/building detection.
     /// </summary>
     public HashSet<Vector2Int> DrawCracks(
         bool[,]    faultMap,
@@ -128,7 +117,7 @@ public class MapPainter : MonoBehaviour
         Color      crackColor,
         int        numCracks      = 8,
         int        maxBranchDepth = 2,
-        float      branchChance   = 0.25f)
+        float      branchChance   = 0.30f)
     {
         if (mapTexture == null) return new HashSet<Vector2Int>();
 
@@ -136,51 +125,17 @@ public class MapPainter : MonoBehaviour
         int h = mapGenerator.height;
         var crackedTiles = new HashSet<Vector2Int>();
 
-        // Scatter crack origins semi-evenly across the circle using a grid jitter approach
-        // so cracks fill the whole area rather than just emanating from the center
-        int gridSize = Mathf.Max(2, Mathf.RoundToInt(Mathf.Sqrt(numCracks)));
-        float cellW  = (radius * 2f) / gridSize;
-        float cellH  = (radius * 2f) / gridSize;
+        // Find the nearest fault tile to the epicenter as the true crack origin
+        Vector2Int origin = FindNearestFaultTile(faultMap, epicenter, radius, w, h);
 
-        int placed = 0;
-        for (int gx = 0; gx < gridSize && placed < numCracks; gx++)
-        for (int gy = 0; gy < gridSize && placed < numCracks; gy++)
+        // Evenly-spaced arms around the full circle with a small random offset each
+        for (int i = 0; i < numCracks; i++)
         {
-            // Cell center offset from epicenter
-            float ox = -radius + cellW * (gx + 0.5f) + Random.Range(-cellW * 0.35f, cellW * 0.35f);
-            float oy = -radius + cellH * (gy + 0.5f) + Random.Range(-cellH * 0.35f, cellH * 0.35f);
-
-            // Skip if outside circle
-            if (ox * ox + oy * oy > radius * radius) continue;
-
-            int sx = Mathf.RoundToInt(epicenter.x + ox);
-            int sy = Mathf.RoundToInt(epicenter.y + oy);
-            if (sx < 0 || sx >= w || sy < 0 || sy >= h) continue;
-            if (!mapGenerator.IsLand(sx, sy)) continue;
-
-            float angle = Random.Range(0f, Mathf.PI * 2f);
-            int   len   = Mathf.RoundToInt(radius * Random.Range(0.3f, 0.7f));
-
-            WalkCrack(new Vector2Int(sx, sy), angle, len, crackColor,
-                      0, maxBranchDepth, branchChance, epicenter, radius, w, h, crackedTiles);
-            placed++;
-        }
-
-        // Fill remaining if grid didn't give enough (small islands)
-        while (placed < numCracks)
-        {
-            float a  = Random.Range(0f, Mathf.PI * 2f);
-            float r  = Random.Range(0f, radius);
-            int   sx = Mathf.RoundToInt(epicenter.x + Mathf.Cos(a) * r);
-            int   sy = Mathf.RoundToInt(epicenter.y + Mathf.Sin(a) * r);
-            if (sx < 0 || sx >= w || sy < 0 || sy >= h || !mapGenerator.IsLand(sx, sy))
-            { placed++; continue; }
-
-            float angle = Random.Range(0f, Mathf.PI * 2f);
-            int   len   = Mathf.RoundToInt(radius * Random.Range(0.25f, 0.55f));
-            WalkCrack(new Vector2Int(sx, sy), angle, len, crackColor,
-                      0, maxBranchDepth, branchChance, epicenter, radius, w, h, crackedTiles);
-            placed++;
+            float angle = (Mathf.PI * 2f / numCracks) * i + Random.Range(-0.25f, 0.25f);
+            int   len   = Mathf.RoundToInt(radius * Random.Range(0.5f, 1.0f));
+            WalkCrack(origin, angle, len, crackColor,
+                      0, maxBranchDepth, branchChance,
+                      epicenter, radius, w, h, crackedTiles);
         }
 
         mapTexture.Apply();
@@ -189,8 +144,29 @@ public class MapPainter : MonoBehaviour
     }
 
     // -------------------------------------------------------------------------
-    // CRACK WALK — sharp, thin, no blur
+    // HELPERS
     // -------------------------------------------------------------------------
+
+    /// <summary>Finds the fault tile closest to the epicenter within the radius.</summary>
+    Vector2Int FindNearestFaultTile(bool[,] faultMap, Vector2Int epicenter, int radius, int w, int h)
+    {
+        float      bestDist = float.MaxValue;
+        Vector2Int best     = epicenter;
+        int        r2       = radius * radius;
+
+        for (int dx = -radius; dx <= radius; dx++)
+        for (int dy = -radius; dy <= radius; dy++)
+        {
+            if (dx * dx + dy * dy > r2) continue;
+            int fx = epicenter.x + dx, fy = epicenter.y + dy;
+            if (fx < 0 || fx >= w || fy < 0 || fy >= h) continue;
+            if (!mapGenerator.IsLand(fx, fy)) continue;
+            if (!faultMap[fx, fy]) continue;
+            float d = dx * dx + dy * dy;
+            if (d < bestDist) { bestDist = d; best = new Vector2Int(fx, fy); }
+        }
+        return best;
+    }
 
     void WalkCrack(
         Vector2Int          start,
@@ -205,9 +181,8 @@ public class MapPainter : MonoBehaviour
         int                 w, int h,
         HashSet<Vector2Int> crackedTiles)
     {
-        Vector2 pos    = start;
-        int     r2     = radius * radius;
-        float   stepSz = 1f; // step 1 pixel at a time for sharp lines
+        Vector2 pos = start;
+        int     r2  = radius * radius;
 
         for (int step = 0; step < length; step++)
         {
@@ -217,41 +192,29 @@ public class MapPainter : MonoBehaviour
             if (cx < 0 || cx >= w || cy < 0 || cy >= h) break;
             if (!mapGenerator.IsLand(cx, cy)) break;
 
-            // Stay within earthquake circle
             int ddx = cx - epicenter.x, ddy = cy - epicenter.y;
             if (ddx * ddx + ddy * ddy > r2) break;
 
-            // Paint the crack pixel very dark — no alpha blending, sharp edge
+            // Single dark pixel — no shadow, no edge
             mapTexture.SetPixel(cx, cy, crackColor);
             crackedTiles.Add(new Vector2Int(cx, cy));
 
-            // Paint a single-pixel dark border on ONE perpendicular side for depth
-            float px = -Mathf.Sin(angle), py = Mathf.Cos(angle);
-            int bx = cx + Mathf.RoundToInt(px), by = cy + Mathf.RoundToInt(py);
-            if (bx >= 0 && bx < w && by >= 0 && by < h && mapGenerator.IsLand(bx, by))
-            {
-                Color border = Color.Lerp(crackColor, mapTexture.GetPixel(bx, by), 0.55f);
-                mapTexture.SetPixel(bx, by, border);
-            }
-
-            // Branch — sharp angle fork
+            // Branch at a sharp fork angle
             if (depth < maxDepth && Random.value < branchChance)
             {
-                float forkAngle = angle + (Random.value > 0.5f ? 1f : -1f)
-                                        * Random.Range(0.5f, 1.1f);
-                int forkLen = Mathf.RoundToInt(length * Random.Range(0.3f, 0.6f));
+                float forkAngle = angle + (Random.value > 0.5f ? 1f : -1f) * Random.Range(0.4f, 0.9f);
+                int   forkLen   = Mathf.RoundToInt(length * Random.Range(0.35f, 0.6f));
                 WalkCrack(new Vector2Int(cx, cy), forkAngle, forkLen, crackColor,
                           depth + 1, maxDepth, branchChance * 0.5f,
                           epicenter, radius, w, h, crackedTiles);
             }
 
-            // Mostly straight with occasional sharp kink — realistic crack geometry
-            if (Random.value < 0.06f)
-                angle += Random.Range(-0.7f, 0.7f);  // sharp kink
-            else
-                angle += Random.Range(-0.08f, 0.08f); // very gentle drift
+            // Mostly straight with rare sharp kink
+            angle += Random.value < 0.05f
+                ? Random.Range(-0.6f, 0.6f)
+                : Random.Range(-0.07f, 0.07f);
 
-            pos += new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * stepSz;
+            pos += new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
         }
     }
 
@@ -319,15 +282,11 @@ public class MapPainter : MonoBehaviour
             beachDistMap[x, y] = -1f;
             if (!mapGenerator.IsLand(x, y)) continue;
             if (mapGenerator.IsSeaRock(x, y)) continue;
-
             int sd = shoreDistField[x, y];
             if (sd == int.MaxValue || sd > beachWidth) continue;
-
             float selector   = Mathf.PerlinNoise(x * 0.015f + beachSeed, y * 0.015f + beachSeed);
             float inlandFade = 1f - ((float)sd / beachWidth);
-            selector        *= inlandFade;
-
-            if (selector > (1f - beachChance))
+            if (selector * inlandFade > (1f - beachChance))
                 beachDistMap[x, y] = (float)sd / beachWidth;
         }
     }
@@ -358,7 +317,6 @@ public class MapPainter : MonoBehaviour
             if (!mapGenerator.IsLand(x, y)) continue;
             int myBiome = mapGenerator.GetBiome(x, y);
             if (myBiome == 5) continue;
-
             int foundOther = 0;
             for (int i = 0; i < 4; i++)
             {
@@ -369,7 +327,6 @@ public class MapPainter : MonoBehaviour
                 if (nb == 5) continue;
                 if (nb != myBiome) { foundOther = nb; break; }
             }
-
             if (foundOther != 0)
             {
                 dist[x, y]        = 0;
@@ -384,7 +341,6 @@ public class MapPainter : MonoBehaviour
             int d       = dist[pos.x, pos.y];
             int other   = sourceOther[pos.x, pos.y];
             int myBiome = mapGenerator.GetBiome(pos.x, pos.y);
-
             for (int i = 0; i < 4; i++)
             {
                 int nx = pos.x + dx4[i], ny = pos.y + dy4[i];
@@ -422,19 +378,16 @@ public class MapPainter : MonoBehaviour
         float beachD = beachDistMap[x, y];
         if (beachD >= 0f)
         {
-            Color beachColor  = PaintBeach(x, y, seed);
-            float blendT      = Mathf.SmoothStep(0f, 1f, beachD);
-            return Color.Lerp(beachColor, GetBiomeColor(myBiome, x, y, seed), blendT);
+            float blendT = Mathf.SmoothStep(0f, 1f, beachD);
+            return Color.Lerp(PaintBeach(x, y, seed), GetBiomeColor(myBiome, x, y, seed), blendT);
         }
 
         if (d >= 1f || otherBiome == 0) return GetBiomeColor(myBiome, x, y, seed);
         if (myBiome > otherBiome)       return GetBiomeColor(myBiome, x, y, seed);
 
         float warp  = Perlin(x, y, seed + 3000f, 0.05f) * 0.4f - 0.2f;
-        float t     = Mathf.Clamp01(d + warp);
         float chaos = Perlin(x, y, seed + 4000f, 0.09f) * 0.3f - 0.15f;
-        t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t + chaos));
-
+        float t     = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(d + warp + chaos));
         return Color.Lerp(GetBiomeColor(otherBiome, x, y, seed), GetBiomeColor(myBiome, x, y, seed), t);
     }
 
@@ -565,9 +518,8 @@ public class MapPainter : MonoBehaviour
         float cx         = (x - w * 0.5f) / (w * 0.5f);
         float cy         = (y - h * 0.5f) / (h * 0.5f);
         float radialDist = Mathf.Clamp01(Mathf.Sqrt(cx * cx + cy * cy));
-        float depth      = Mathf.Max(coastDist, radialDist);
-        float jitter     = Perlin(x, y, seed + 1200f, 0.04f) * 0.18f - 0.09f;
-        depth            = Mathf.Clamp01(depth + jitter);
+        float depth      = Mathf.Clamp01(Mathf.Max(coastDist, radialDist)
+                         + Perlin(x, y, seed + 1200f, 0.04f) * 0.18f - 0.09f);
         float stepped    = Mathf.Floor(depth * waterDepthSteps) / (waterDepthSteps - 1);
         return Color.Lerp(settings.waterShallow, settings.waterDeep, Mathf.Clamp01(stepped));
     }

@@ -19,6 +19,8 @@ public class RoadTrafficSystem : MonoBehaviour
 
     [Header("Car Sprite")]
     public Sprite carSprite;
+    [Tooltip("Night variant of the car sprite (headlights on). Leave empty to skip crossfade.")]
+    public Sprite carSpriteNight;
     public string carSortingLayer = "Default";
     public int    carSortingOrder = 20;
     public float  pixelsPerUnit   = 100f;
@@ -53,7 +55,8 @@ public class RoadTrafficSystem : MonoBehaviour
         public Color color;
         public float scaleFactor;
         public GameObject     go;
-        public SpriteRenderer sr;
+        public SpriteRenderer daySR;
+        public SpriteRenderer nightSR;   // null if no night sprite assigned
         public Quaternion     currentRotation;
         public Vector2        smoothedDir;
         public Vector3        smoothedWorldPos;
@@ -69,6 +72,9 @@ public class RoadTrafficSystem : MonoBehaviour
     private bool      active = false;
 
     private HashSet<Vector2Int> brokenRoadTiles = new HashSet<Vector2Int>();
+
+    // crossfade tracking
+    private float prevLightingRatio = -1f;
 
     // -------------------------------------------------------------------------
     // LIFECYCLE
@@ -151,6 +157,8 @@ public class RoadTrafficSystem : MonoBehaviour
 
     void SpawnCars()
     {
+        bool hasNight = carSpriteNight != null;
+
         for (int p = 0; p < allPaths.Count; p++)
         {
             float density = (p < highwayPathCount) ? highwayCarDensity : branchCarDensity;
@@ -179,11 +187,42 @@ public class RoadTrafficSystem : MonoBehaviour
                 car.currentRotation = DirToRotation(car.smoothedDir);
 
                 car.go = GetFromPool();
-                car.sr = car.go.GetComponent<SpriteRenderer>();
-                car.sr.sprite           = carSprite;
-                car.sr.color            = col;
-                car.sr.sortingLayerName = carSortingLayer;
-                car.sr.sortingOrder     = carSortingOrder;
+
+                // --- Day renderer (first child or root SpriteRenderer) ---
+                car.daySR = car.go.GetComponent<SpriteRenderer>();
+                car.daySR.sprite           = carSprite;
+                car.daySR.color            = col;
+                car.daySR.sortingLayerName = carSortingLayer;
+                car.daySR.sortingOrder     = carSortingOrder;
+
+                // --- Night overlay renderer (child) ---
+                if (hasNight)
+                {
+                    Transform nightChild = car.go.transform.Find("NightOverlay");
+                    if (nightChild == null)
+                    {
+                        GameObject nightGo = new GameObject("NightOverlay");
+                        nightGo.transform.SetParent(car.go.transform, false);
+                        nightGo.transform.localPosition = Vector3.zero;
+                        nightGo.transform.localScale    = Vector3.one;
+                        nightGo.transform.localRotation = Quaternion.identity;
+                        car.nightSR = nightGo.AddComponent<SpriteRenderer>();
+                    }
+                    else
+                    {
+                        car.nightSR = nightChild.GetComponent<SpriteRenderer>();
+                    }
+
+                    car.nightSR.sprite           = carSpriteNight;
+                    car.nightSR.color            = new Color(col.r, col.g, col.b, 0f);
+                    car.nightSR.sortingLayerName = carSortingLayer;
+                    car.nightSR.sortingOrder     = carSortingOrder + 1;
+                }
+                else
+                {
+                    car.nightSR = null;
+                }
+
                 car.go.transform.localScale = new Vector3(scale, scale, 1f);
                 car.go.transform.position   = car.smoothedWorldPos;
                 car.go.transform.rotation   = car.currentRotation;
@@ -192,6 +231,10 @@ public class RoadTrafficSystem : MonoBehaviour
                 activeCars.Add(car);
             }
         }
+
+        // Apply initial crossfade
+        var dn = DayNightCycle.Instance;
+        if (dn != null) ApplyCarCrossfade(dn.LightingRatio);
     }
 
     Color PickCarColor()
@@ -212,13 +255,16 @@ public class RoadTrafficSystem : MonoBehaviour
     void Update()
     {
         if (!active || activeCars.Count == 0) return;
+
+        // --- Smooth crossfade ---
+        UpdateCarCrossfade();
+
         float dt = Time.deltaTime;
 
         for (int i = 0; i < activeCars.Count; i++)
         {
             Car car = activeCars[i];
 
-            // Stopped cars — check if crack is still ahead; if path clear, resume
             if (Mathf.Approximately(car.speedInPixels, 0f))
             {
                 activeCars[i] = car;
@@ -232,8 +278,6 @@ public class RoadTrafficSystem : MonoBehaviour
             if (brokenRoadTiles.Count > 0)
             {
                 int curIdx = Mathf.Clamp(Mathf.RoundToInt(car.position), 0, path.Count - 1);
-
-                // Look ahead in direction of travel
                 int lookDir  = car.speedInPixels >= 0 ? 1 : -1;
                 int lookStart = curIdx + lookDir;
                 int lookEnd   = curIdx + lookDir * (directionLookahead + 8);
@@ -254,7 +298,6 @@ public class RoadTrafficSystem : MonoBehaviour
 
             bool didFlip = false;
 
-            // Mid-path junction switch
             int currentIdx = Mathf.Clamp(Mathf.RoundToInt(car.position), 0, path.Count - 1);
             if (car.pathIndex < highwayPathCount && Random.value < 0.002f)
             {
@@ -328,6 +371,42 @@ public class RoadTrafficSystem : MonoBehaviour
     }
 
     // -------------------------------------------------------------------------
+    // DAY / NIGHT CROSSFADE
+    // -------------------------------------------------------------------------
+
+    void UpdateCarCrossfade()
+    {
+        if (carSpriteNight == null) return;
+
+        var dn = DayNightCycle.Instance;
+        if (dn == null) return;
+
+        float ratio = dn.LightingRatio;
+        if (Mathf.Abs(ratio - prevLightingRatio) < 0.005f) return;
+        prevLightingRatio = ratio;
+
+        ApplyCarCrossfade(ratio);
+    }
+
+    void ApplyCarCrossfade(float ratio)
+    {
+        for (int i = 0; i < activeCars.Count; i++)
+        {
+            Car car = activeCars[i];
+            if (car.daySR == null) continue;
+
+            Color col = car.color;
+
+            // Day fades out
+            car.daySR.color = new Color(col.r, col.g, col.b, 1f - ratio);
+
+            // Night fades in
+            if (car.nightSR != null)
+                car.nightSR.color = new Color(col.r, col.g, col.b, ratio);
+        }
+    }
+
+    // -------------------------------------------------------------------------
     // ROAD BREAKING
     // -------------------------------------------------------------------------
 
@@ -335,7 +414,6 @@ public class RoadTrafficSystem : MonoBehaviour
     {
         foreach (var t in broken) brokenRoadTiles.Add(t);
 
-        // Stop cars that have a broken tile within their lookahead window
         for (int i = 0; i < activeCars.Count; i++)
         {
             Car car  = activeCars[i];
