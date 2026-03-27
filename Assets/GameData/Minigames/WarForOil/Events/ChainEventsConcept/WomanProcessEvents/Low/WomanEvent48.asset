@@ -10,18 +10,20 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: bfbaecc4cb0677840a36451123fe4ad1, type: 3}
-  m_Name: WomanEvent41
+  m_Name: WomanEvent48
   m_EditorClassIdentifier: Assembly-CSharp::WarForOilEvent
-  id: wfo_we_low_41
-  displayName: 
-  description: 
+  id: wfo_we_low_48
+  displayName: So Far So Good
+  description: We are about to take full control of the government building! The
+    army continues to provide support with heavy bombardment. Within hours, we will
+    capture the country's president.
   useTypewriterEffect: 0
   conditionalDescriptions: []
   devNote: 
   eventNote: 
   minWarTime: 0
   maxWarTime: -1
-  decisionTime: 10
+  decisionTime: 45
   isRepeatable: 0
   isUnlimitedRepeat: 0
   maxRepeatCount: 1

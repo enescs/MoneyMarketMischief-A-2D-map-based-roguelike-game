@@ -12,9 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bfbaecc4cb0677840a36451123fe4ad1, type: 3}
   m_Name: WomanEvent44
   m_EditorClassIdentifier: Assembly-CSharp::WarForOilEvent
-  id: 
+  id: wfo_we_low_44
   displayName: 
-  description: 
+  description: The agents completed their mission and perished, but their sacrifice
+    has bought us precious time. Our operation to kidnap the President is about to
+    begin; security is thin.
   useTypewriterEffect: 0
   conditionalDescriptions: []
   devNote: 

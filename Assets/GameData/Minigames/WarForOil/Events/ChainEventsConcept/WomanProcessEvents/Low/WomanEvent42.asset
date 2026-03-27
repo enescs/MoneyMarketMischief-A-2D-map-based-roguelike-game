@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bfbaecc4cb0677840a36451123fe4ad1, type: 3}
   m_Name: WomanEvent42
   m_EditorClassIdentifier: Assembly-CSharp::WarForOilEvent
-  id: 
+  id: wfo_we_low_42
   displayName: 
   description: 
   useTypewriterEffect: 0
@@ -44,6 +44,7 @@ MonoBehaviour:
   precursorEventType: 0
   precursorWarEvent: {fileID: 0}
   precursorRandomEvent: {fileID: 0}
+  requiredStoryFlags: 
   chainRole: 0
   blocksSubChainBranching: 0
   alsoBlockedBranchEvents: []
