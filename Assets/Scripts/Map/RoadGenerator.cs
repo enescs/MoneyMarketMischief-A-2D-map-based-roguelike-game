@@ -642,6 +642,7 @@ public class RoadGenerator : MonoBehaviour
         waypoints.Add((Vector2)rawPath[rawPath.Count - 1]);
 
         // Clamp all waypoints to stay inland
+        MapGenerator hwMap = FindFirstObjectByType<MapGenerator>();
         for (int i = 0; i < waypoints.Count; i++)
         {
             int wx = Mathf.Clamp(Mathf.RoundToInt(waypoints[i].x), 0, _w - 1);
@@ -1047,10 +1048,7 @@ public class RoadGenerator : MonoBehaviour
         }
 
         List<Vector2Int> pass1 = SplineToPixels(wp1, 20);
-        List<Vector2Int> pass1Valid = new List<Vector2Int>();
-        foreach (var p in pass1)
-            if (map.IsLand(p.x, p.y)) pass1Valid.Add(p);
-        if (pass1Valid.Count < 20) return rawPath;
+        List<Vector2Int> pass1Valid = pass1;
 
         int step2 = Mathf.Clamp(pass1Valid.Count / 12, 10, 40);
         float noiseSeed = UnityEngine.Random.Range(0f, 9999f);
@@ -1090,9 +1088,7 @@ public class RoadGenerator : MonoBehaviour
         }
 
         List<Vector2Int> pass2 = SplineToPixels(wp2, 20);
-        List<Vector2Int> result = new List<Vector2Int>();
-        foreach (var p in pass2)
-            if (map.IsLand(p.x, p.y)) result.Add(p);
+        List<Vector2Int> result = pass2;
 
         if (result.Count < rawPath.Count * 0.3f) return pass1Valid;
         return result;

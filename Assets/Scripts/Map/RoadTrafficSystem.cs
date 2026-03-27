@@ -729,6 +729,32 @@ public class RoadTrafficSystem : MonoBehaviour
     // JUNCTIONS
     // -------------------------------------------------------------------------
 
+    /// <summary>
+    /// Yol path'lerinde su boşluklarını tespit eder.
+    /// Ardışık pikseller arası mesafe 3'ten fazlaysa, boşluğun iki tarafını
+    /// brokenRoadTiles'a ekler — arabalar bu noktada durur.
+    /// </summary>
+    void DetectPathGaps()
+    {
+        for (int p = 0; p < allPaths.Count; p++)
+        {
+            var path = allPaths[p];
+            for (int i = 0; i < path.Count - 1; i++)
+            {
+                float dist = Vector2Int.Distance(path[i], path[i + 1]);
+                if (dist > 3f)
+                {
+                    //büyük atlama = su boşluğu — her iki tarafı da kırık olarak işaretle
+                    brokenRoadTiles.Add(path[i]);
+                    brokenRoadTiles.Add(path[i + 1]);
+                    //etrafındaki birkaç pikseli de ekle ki lookahead yakalasın
+                    for (int j = Mathf.Max(0, i - 3); j <= Mathf.Min(path.Count - 1, i + 4); j++)
+                        brokenRoadTiles.Add(path[j]);
+                }
+            }
+        }
+    }
+
     void BuildJunctions()
     {
         junctionGroups.Clear();

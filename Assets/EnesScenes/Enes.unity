@@ -10219,23 +10219,27 @@ MonoBehaviour:
   brokenBuildingTint: {r: 0.55, g: 0.45, b: 0.4, a: 1}
   citiesDecorNight: []
   brokenBuildingSpritesNight: []
-  portSpritesDay: []
-  portSpritesNight: []
+  portSpritesDay:
+  - {fileID: 694149444081068427, guid: 5a6b1038ce244cc46806321c64af4317, type: 3}
+  portSpritesNight:
+  - {fileID: 694149444081068427, guid: 5a6b1038ce244cc46806321c64af4317, type: 3}
   portScaleRange: {x: 0.9, y: 1.2}
   portRegionBackingRadius: 3
   portMinSeparation: 60
   maxActiveShips: 4
-  shipSpritesDay: []
-  shipSpritesNight: []
-  shipSpeed: 0.3
+  shipSpritesDay:
+  - {fileID: -4360530552843628718, guid: 3ca3c663470315144ace4d40f19a1d08, type: 3}
+  shipSpritesNight:
+  - {fileID: -4360530552843628718, guid: 3ca3c663470315144ace4d40f19a1d08, type: 3}
+  shipSpeed: 0.22
   shipScaleRange: {x: 0.6, y: 1}
   shipWaitTimeRange: {x: 3, y: 8}
   shipSpawnInterval: 5
   shipPathGridStep: 3
-  shipLandClearance: 20
-  shipMinCorridorWidth: 3
+  shipLandClearance: 30
+  shipMinCorridorWidth: 5
   shipShoreAvoidanceWeight: 2.5
-  shipTurnSpeed: 45
+  shipTurnSpeed: 102
   shipPathSmoothingPasses: 3
 --- !u!114 &1710072564
 MonoBehaviour:
