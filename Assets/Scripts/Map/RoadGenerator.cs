@@ -811,24 +811,40 @@ public class RoadGenerator : MonoBehaviour
             int maxDist = 0;
             Vector2Int target = Vector2Int.zero;
             bool found = false;
-            for (int x = 0; x < _w; x += 3)
-                for (int y = 0; y < _h; y += 3)
-                {
-                    if (!map.IsLand(x, y)) continue;
-                    int d = roadDist[x, y];
-                    if (d == int.MaxValue) continue;
-                    // Skip targets too close to shore
-                    int shore = shoreDistCache[x, y];
-                    if (shore >= 0 && shore < branchShoreBuffer) continue;
-                    if (d > maxDist)
-                    {
-                        maxDist = d;
-                        target = new Vector2Int(x, y);
-                        found = true;
-                    }
-                }
 
-            if (!found || maxDist < branchMinCoverageDistance) break;
+            //önce normal eşiklerle dene, bulamazsa kademeli olarak düşür
+            int currentShoreBuffer = branchShoreBuffer;
+            int currentMinCoverage = branchMinCoverageDistance;
+
+            for (int relaxPass = 0; relaxPass < 3 && !found; relaxPass++)
+            {
+                for (int x = 0; x < _w; x += 3)
+                    for (int y = 0; y < _h; y += 3)
+                    {
+                        if (!map.IsLand(x, y)) continue;
+                        int d = roadDist[x, y];
+                        if (d == int.MaxValue) continue;
+                        int shore = shoreDistCache[x, y];
+                        if (shore >= 0 && shore < currentShoreBuffer) continue;
+                        if (d > maxDist)
+                        {
+                            maxDist = d;
+                            target = new Vector2Int(x, y);
+                            found = true;
+                        }
+                    }
+
+                if (!found || maxDist < currentMinCoverage)
+                {
+                    //eşikleri düşür ve tekrar dene
+                    found = false;
+                    maxDist = 0;
+                    currentShoreBuffer = Mathf.Max(2, currentShoreBuffer / 2);
+                    currentMinCoverage = Mathf.Max(10, currentMinCoverage / 2);
+                }
+            }
+
+            if (!found || maxDist < 10) break;
 
             float bestHwDist = float.MaxValue;
             int bestHwIdx = 0;
@@ -877,7 +893,15 @@ public class RoadGenerator : MonoBehaviour
                 int skip = (w > 0 && rawPath.Count > 0) ? 1 : 0;
                 for (int s = skip; s < seg.Count; s++) rawPath.Add(seg[s]);
             }
+
+            //waypoint'li yol başarısızsa, direkt BFS dene (tek segment)
             if (pathBroken || rawPath.Count < 15)
+            {
+                rawPath = BFSPathOnLandSimple(map, hwStart, target);
+                pathBroken = rawPath.Count < 10;
+            }
+
+            if (pathBroken || rawPath.Count < 10)
             {
                 roadDist[target.x, target.y] = 0;
                 continue;
@@ -931,7 +955,10 @@ public class RoadGenerator : MonoBehaviour
             }
         }
 
-        Debug.Log($"RoadGenerator: {placed} dal yerleştirildi (kapsama tabanlı, eşik={branchMinCoverageDistance}px).");
+        if (placed == 0)
+            Debug.LogWarning($"RoadGenerator: HİÇ BRANCH YOL ÜRETİLEMEDİ! branchMinCoverage={branchMinCoverageDistance}, shoreBuffer={branchShoreBuffer}, branchMaxCount={branchMaxCount}");
+        else
+            Debug.Log($"RoadGenerator: {placed} dal yerleştirildi (kapsama tabanlı, eşik={branchMinCoverageDistance}px).");
     }
 
     /// <summary>
