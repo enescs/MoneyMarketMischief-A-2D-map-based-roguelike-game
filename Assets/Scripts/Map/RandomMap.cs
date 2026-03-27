@@ -268,15 +268,14 @@ public class MapGenerator : MonoBehaviour
 
             for (int attempt = 0; attempt < 30; attempt++)
             {
-                float side = (attempt % 2 == 0) ? -1f : 1f;
-
+                //360 derece rastgele dağılım — adanın her yönüne kaya atabilir
+                float angle = Random.Range(0f, Mathf.PI * 2f);
                 float minDistFromCenter = islandRadius * 0.9f;
-                float maxDistFromCenter = halfW * seaRockSpread;
-                float hDist = Random.Range(minDistFromCenter, maxDistFromCenter);
+                float maxDistFromCenter = Mathf.Min(halfW, halfH) * seaRockSpread;
+                float dist = Random.Range(minDistFromCenter, maxDistFromCenter);
 
-                float cx = islandCenter.x + side * hDist;
-                float vScatter = halfH * 0.5f;
-                float cy = islandCenter.y + Random.Range(-vScatter, vScatter);
+                float cx = islandCenter.x + Mathf.Cos(angle) * dist;
+                float cy = islandCenter.y + Mathf.Sin(angle) * dist;
 
                 int icx = Mathf.RoundToInt(cx), icy = Mathf.RoundToInt(cy);
                 if (icx < 15 || icx > width - 15 || icy < 15 || icy > height - 15) continue;
