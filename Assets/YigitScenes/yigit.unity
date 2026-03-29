@@ -311,7 +311,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4450646308301582934, guid: 0db640ce4dba7f84288299145cda16db, type: 3}
       propertyPath: islandMaxExtent
-      value: 0.85
+      value: 0.92
       objectReference: {fileID: 0}
     - target: {fileID: 4450646308301582934, guid: 0db640ce4dba7f84288299145cda16db, type: 3}
       propertyPath: minSpawnThreshold
@@ -10238,7 +10238,7 @@ MonoBehaviour:
   - {fileID: -4360530552843628718, guid: 3ca3c663470315144ace4d40f19a1d08, type: 3}
   shipSpritesNight:
   - {fileID: -4360530552843628718, guid: 3ca3c663470315144ace4d40f19a1d08, type: 3}
-  shipSpeed: 0.22
+  shipSpeed: 0.39
   shipScaleRange: {x: 0.6, y: 1}
   shipWaitTimeRange: {x: 3, y: 8}
   shipSpawnInterval: 5
